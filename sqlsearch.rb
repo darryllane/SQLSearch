@@ -30,10 +30,12 @@ EOS
   opt :wauth, "Use Windows Authentication"                    # flag --monkey, default false
   opt :target, "Target Database IP Address/Hostname", :type => :string     	  # Target IP Address
   opt :database, "Target a single database", :type => :string     	  # Target IP Address
+  opt :port, "Target Port", :default => 1433
   opt :sample, "Output sample data from matches"			  # Select rows from matched tables
   opt :depth, "Sample data depth. Max: 10", :default => 1   			  # Quantity of rows to return from sampling
   opt :query, "Show example SQL queries"                  			  # Show example SQL queries
-  opt :output, "Output matches to file", :type => :string      # Output matches to a file
+  opt :export, "Output matches to file", :type => :string      # Output matches to a file
+
 end
 
 
@@ -46,13 +48,13 @@ keywords.push(keyword.to_s.gsub("\n",""))
 end
 
 #Create a client Tiny_TDS Windows auth database object
-def createclient(username,password,domain,targetaddress)
-	client = TinyTds::Client.new(:username => "#{domain}\\#{username}",:password => "#{password}", :dataserver => "#{targetaddress}")
+def createclient(username,password,domain,targetaddress,port)
+	client = TinyTds::Client.new(:username => "#{domain}\\#{username}",:password => "#{password}", :host => "#{targetaddress}", :port => "#{port}")
 	end
 
 #Create a client Tiny_TDS SQL auth database object
-def createclientsql(username,password,targetaddress)
-	client = TinyTds::Client.new(:username => "#{username}",:password => "#{password}", :dataserver => "#{targetaddress}")
+def createclientsql(username,password,targetaddress,port)
+	client = TinyTds::Client.new(:username => "#{username}",:password => "#{password}", :host => "#{targetaddress}", :port => "#{port}")
 	end
 
 
@@ -63,7 +65,7 @@ def createclientsql(username,password,targetaddress)
 begin
 if opts[:wauth]
 
-	client = createclient(opts[:username],opts[:password],opts[:domain],opts[:target])
+	client = createclient(opts[:username],opts[:password],opts[:domain],opts[:target],opts[:port])
 		if client.active? == true
 			puts ""
 			puts "=> Successfully connected to " + opts[:target].to_s + " with " + opts[:username].to_s + "/" + opts[:password].to_s
@@ -76,7 +78,7 @@ if opts[:wauth]
 
 #SQL Authentication
 else
-	client = createclientsql(opts[:username],opts[:password],opts[:target])
+	client = createclientsql(opts[:username],opts[:password],opts[:target],opts[:port])
 		if client.active? == true
 			puts ""
 			puts "=> Successfully connected to " + opts[:target].to_s + " with " + opts[:username].to_s + "/" + opts[:password].to_s
