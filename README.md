@@ -14,7 +14,7 @@ You can issue 'ruby sqlsearch.rb --help' for a list of commands. However, the mo
 
 $ruby sqlsearch.rb -u sa -p password -t 10.0.0.1
 
-The above command would connect using system administrator(SA) credentials and attempt to find sensitive in table and column names.
+The above command would connect using system administrator(SA) credentials and attempt to find sensitive keywords in table and column names.
 
 To connect using Windows authentication you need to add the '-w' command switch and a '-d' domain name. For example:
 
