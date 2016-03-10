@@ -254,7 +254,7 @@ masterdbs.each do |mds|
 					#Output matches to file
 					if opts[:export]
 
-						File.open(opts[:output].to_s,'a') do |file|
+						File.open(opts[:export].to_s,'a') do |file|
 						file.write(mds.to_s + " > " + table.to_s + "\n")
 						end
 					end
@@ -296,7 +296,7 @@ masterdbs.each do |mds|
 					#Output matches to file
 					if opts[:export]
 
-						File.open(opts[:output].to_s,'a') do |file|
+						File.open(opts[:export].to_s,'a') do |file|
 						file.write(mds.to_s + " > " + table.to_s + " > " + keyword.to_s + "\n")
 						end
 					end
