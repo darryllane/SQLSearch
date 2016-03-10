@@ -1,5 +1,5 @@
-#Data Sniffer
-#A tool for searching Microsoft SQL databases, identifying sensitive information based on keyword matches.
+#SQLSearch
+
 
 #Dependencies
 require "tiny_tds"		#Microsoft SQL Database connection gem
@@ -18,6 +18,10 @@ This tool is used to help security consultants locate potentially
 sensitive information in Microsoft SQL databases. The table and
 column names are extracted from the database and are compared with
 a list of keywords.
+
+Example Usage:
+
+$ruby sqlsearch.rb -w -u administrator -p Pa55w0rd -d WORKGROUP -t 10.0.0.1 -o output.txt
    
 EOS
   opt :username, "SA/Windows Username", :type => :string      # Username for database connection
@@ -25,9 +29,11 @@ EOS
   opt :domain, "Windows Domain Name", :type => :string     		  # Domain for use with Windows auth connection
   opt :wauth, "Use Windows Authentication"                    # flag --monkey, default false
   opt :target, "Target Database IP Address/Hostname", :type => :string     	  # Target IP Address
+  opt :database, "Target a single database", :type => :string     	  # Target IP Address
   opt :sample, "Output sample data from matches"			  # Select rows from matched tables
   opt :depth, "Sample data depth. Max: 10", :default => 1   			  # Quantity of rows to return from sampling
   opt :query, "Show example SQL queries"                  			  # Show example SQL queries
+  opt :output, "Output matches to file", :type => :string      # Output matches to a file
 end
 
 
@@ -95,6 +101,8 @@ result = client.execute("SELECT @@VERSION")
 	puts "=> Banner: Microsoft SQL Server 2008"
 	elsif result.each[0][""].include?("Server 2012")
 	puts "=> Banner: Microsoft SQL Server 2012"
+	elsif result.each[0][""].include?("Server 2000")
+	puts "=> Banner: Microsoft SQL Server 2000"
 	else
 	puts "Unknown Version"
 	end
@@ -129,6 +137,15 @@ finalhash = {}
 masterdbs.each do |mds|
 	finalhash[mds] = {}
 end
+
+
+#Single database option
+if opts[:database]
+	masterdbs = [opts[:database]]
+	finalhash = {}
+	finalhash[opts[:database]] = {}
+end
+
 
 
 
@@ -229,6 +246,14 @@ masterdbs.each do |mds|
 						puts ""
 					end
 
+					#Output matches to file
+					if opts[:output]
+
+						File.open(opts[:output].to_s,'a') do |file|
+						file.write(mds.to_s + " > " + table.to_s + "\n")
+						end
+					end
+
 
 				end
 				result.cancel
@@ -261,6 +286,14 @@ masterdbs.each do |mds|
 						count += 1
 					end
 						puts ""
+					end
+
+					#Output matches to file
+					if opts[:output]
+
+						File.open(opts[:output].to_s,'a') do |file|
+						file.write(mds.to_s + " > " + table.to_s + " > " + keyword.to_s + "\n")
+						end
 					end
 
 				end
