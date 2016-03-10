@@ -159,11 +159,14 @@ masterdbs.each do |mds|
 	
 	#Select table names from the database with tiny_tds
 	begin
-	result = client.execute("SELECT TABLE_NAME FROM " + mds + ".INFORMATION_SCHEMA.TABLES")
+	result = client.execute("SELECT TABLE_NAME FROM " + mds.to_s + ".INFORMATION_SCHEMA.TABLES")
+	result.each
 	rescue
-		puts "Issues connecting to the " + mds + " database. Could be lack of privileges."
+		result.cancel
+		puts "=> Issues connecting to the >".red + mds.to_s.upcase.white + "< database. Could be lack of privileges.".red
+		puts "   Try using local administator or SA credentials.".red
 		masterdbs.delete(mds)
-		puts mds + " Removed..."
+		puts ""
 	end
 
 
