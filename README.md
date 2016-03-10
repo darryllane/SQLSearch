@@ -2,9 +2,9 @@
 
 What dependencies are there?
 
-gem install tiny_tds
-gem install colorize
-gem install trollop
+gem install tiny_tds \n
+gem install colorize \n
+gem install trollop \n
 
 What does the tool do?
 
