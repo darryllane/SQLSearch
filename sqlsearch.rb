@@ -33,11 +33,20 @@ EOS
   opt :port, "Target Port", :default => 1433
   opt :sample, "Output sample data from matches"			  # Select rows from matched tables
   opt :depth, "Sample data depth. Max: 10", :default => 1   			  # Quantity of rows to return from sampling
+  opt :rowcount, "Minimum Rows", :default => 1   			  # Quantity of rows to return from sampling
   opt :query, "Show example SQL queries"                  			  # Show example SQL queries
-  opt :export, "Output matches to file", :type => :string      # Output matches to a file
+  opt :export, "Output matches csv file", :type => :string      # Output matches to a file
 
 end
 
+
+#Create Output File
+if opts[:export]
+
+	File.open(opts[:export].to_s,'a') do |file|
+	file.write("DATABASE,SCHEMA,TABLE,COLUMN,ROWCOUNT\n")
+	end
+end
 
 
 #Read in keywords from file.
@@ -150,63 +159,88 @@ end
 
 
 
-
-
 #----------------------------------------------
 # Building the database information hash
 #----------------------------------------------
 
 masterdbs.each do |mds|
 
-	
-	#Select table names from the database with tiny_tds
-	begin
-	result = client.execute("SELECT TABLE_NAME FROM " + mds.to_s + ".INFORMATION_SCHEMA.TABLES")
-	result.each
-	rescue
-		result.cancel
-		puts "=> Issues connecting to the >".red + mds.to_s.upcase.white + "< database. Could be lack of privileges.".red
-		puts "   Try using local administator or SA credentials.".red
-		masterdbs.delete(mds)
-		puts ""
-	end
 
+	#Extract the schemas
+	result = client.execute("SELECT DISTINCT TABLE_SCHEMA FROM " + mds.to_s + ".INFORMATION_SCHEMA.TABLES")
 
-	#Extract table names from the tiny_tds object and insert them as keys in the final hash
-	currenttablelist = []
+	schemalist = []
 	count = 0
 	while count < result.each.count do
-
-		currenttablelist.push(result.each[count]["TABLE_NAME"])
+		schemalist.push(result.each[count]["TABLE_SCHEMA"])
 		count += 1
 		result.cancel
-
-	end
-	currenttablelist.each do |table|
-		finalhash[mds][table] = {}
 	end
 
 
-	#Select column names from the database with tiny_tds
-	currenttablelist.each do |table|
+	schemalist.each do |schema|
 
-	columnlist = []
+	
+			#Select table names from the database with tiny_tds
+			begin
+			
+			result = client.execute("SELECT TABLE_NAME FROM " + mds.to_s + ".INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='" + schema.to_s + "'")
+			result.each
 
-	result = client.execute("SELECT * FROM " + mds + ".INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '" + table + "'")
+			rescue
+				result.cancel
+				puts "=> Issues connecting to the >".red + mds.to_s.upcase.white + "< database. Could be lack of privileges.".red
+				puts "   Try using local administator or SA credentials.".red
+				masterdbs.delete(mds)
+				puts ""
+			end
+
+			#Add Schemas to final hash
+
+			finalhash[mds][schema] = {}
+
+
+			#Extract table names from the tiny_tds object and insert them as keys in the final hash
+			currenttablelist = []
+			count = 0
+			while count < result.each.count do
+
+				currenttablelist.push(result.each[count]["TABLE_NAME"])
+				count += 1
+				result.cancel
+
+			end
+
+			currenttablelist.each do |table|
+				finalhash[mds][schema][table] = {}
+			end
 
 
 
-	#Extract column names from the tiny_tds object and insert them as values to the table keys in the final hash
-		count = 0
-		while count < result.each.count do
-			columnlist.push(result.each[count]["COLUMN_NAME"])
-			count += 1
-		result.cancel
-		end	
+			#Select column names from the database with tiny_tds
+			currenttablelist.each do |table|
 
-	finalhash[mds][table] = columnlist
+			columnlist = []
 
-	end
+			result = client.execute("SELECT COLUMN_NAME FROM " + mds + ".INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '" + table + "' AND TABLE_SCHEMA='" + schema + "'")
+
+
+			#Extract column names from the tiny_tds object and insert them as values to the table keys in the final hash
+				count = 0
+				while count < result.each.count do
+					columnlist.push(result.each[count]["COLUMN_NAME"])
+					count += 1
+				result.cancel
+				end	
+
+			finalhash[mds][schema][table] = columnlist
+
+			end
+
+
+		end
+
+
 end	
 
 
@@ -214,95 +248,77 @@ end
 # Searching the database information hash for keywords
 #------------------------------------------------------
 
+puts ""
+puts "Searching Table Names..."
+puts ""
+#Searching for table matches
 
 masterdbs.each do |mds|
 
-	finalhash[mds].each do |table, column|
+	keywords.each do |keyword|
 
-		keywords.each do |keyword|
+		finalhash[mds].each do |schema, table|
 
-			if keyword.to_s == table.to_s
-				result = client.execute("SELECT TOP 10 * FROM " + mds.to_s + ".dbo.[" + table.to_s + "]")
-				if result.count > 0
-					puts "=> " + "Match Found!".yellow + " >" + keyword.to_s.upcase.white + "< table found in the " + mds.to_s.upcase.yellow + " database."
-					
+			table.each do |tablename, column|
+
+				if tablename == keyword.to_s
+
+				#Check Row Count
+					client.execute("SET ANSI_NULLS, QUOTED_IDENTIFIER, CONCAT_NULL_YIELDS_NULL, ANSI_WARNINGS, ANSI_PADDING ON;")
+					result = client.execute("SELECT COUNT(*) FROM [" + mds.to_s + "].[" + schema.to_s + "].[" + tablename.to_s + "]")
+
+				rowcount = 0
+				if (result.each[0][""]) > opts[:rowcount].to_i	
+				rowcount = (result.each[0][""]).to_i
+
+				
+				puts "Found '" + keyword.yellow + "' in " + schema.to_s.white + " in " + mds.to_s.white + " | Rows:".white + (result.each[0][""]).to_s
+
 
 					#Output queries to screen
 					if opts[:query]
-						puts "Query: SELECT TOP 10 * FROM " + mds + ".dbo.[" + table+ "];"	
-						puts ""
+					puts "Query: SELECT TOP 10 * FROM [" + mds.to_s + "].[" + schema.to_s + "].[" + keyword.to_s + "];"	
+					puts ""
 					else
-						puts ""
+					puts ""
 					end	
 
 					#Output sample data to screen
 					if opts[:sample]
 
-						maxdepth = opts[:depth].to_i
-						upperdepth = result.each.count
-
-						count = 0
-						
-						while (count < upperdepth) && (count < maxdepth)
-
-							puts "Row" + (count + 1).to_s + " " + result.each[count].values.join(", ")
-							count += 1
-						end
-						puts ""
-					end
-
-					#Output matches to file
-					if opts[:export]
-
-						File.open(opts[:export].to_s,'a') do |file|
-						file.write(mds.to_s + " > " + table.to_s + "\n")
-						end
-					end
-
-
-				end
-				result.cancel
-
-			elsif column.include?(keyword)
-				result = client.execute("SELECT TOP 10 " + keyword.to_s + " FROM " + mds.to_s + ".dbo.[" + table.to_s + "]")
-				if result.count > 0
-					puts "=> " + "Match Found!".yellow + " >" + keyword.to_s.upcase.white + "< column found in the " + table.to_s.upcase.yellow + " table in the " + mds.to_s.upcase.yellow + " database."
-					
-					#Output queries to screen
-					if opts[:query]
-						puts "Query: SELECT TOP 10 " + keyword.to_s.upcase + " FROM " + mds + ".dbo.[" + table + "];"
-						puts ""		
-					else
-						puts ""
-					end
-
-
-					#Output sample data to screen
-					if opts[:sample]
+					result = client.execute("SELECT TOP 10 *  FROM [" + mds.to_s + "].[" + schema.to_s + "].[" + tablename.to_s + "]")
 
 					maxdepth = opts[:depth].to_i
 					upperdepth = result.each.count
 
 					count = 0
-						
+								
 					while (count < upperdepth) && (count < maxdepth)
 
-						puts "Row" + (count + 1).to_s + " " + result.each[count].values.join(", ")
-						count += 1
+					puts "Row" + (count + 1).to_s + " " + result.each[count].values.join(", ")
+					count += 1
 					end
-						puts ""
+					puts ""
+
 					end
 
 					#Output matches to file
 					if opts[:export]
 
 						File.open(opts[:export].to_s,'a') do |file|
-						file.write(mds.to_s + " > " + table.to_s + " > " + keyword.to_s + "\n")
+						file.write(mds.to_s + "," + schema.to_s + "," + tablename.to_s + ",Column" + "," + rowcount.to_s + "\n")
 						end
 					end
 
+
+
+
+
+						
+
+					end
+
 				end
-				result.cancel
 
 			end
 
@@ -311,6 +327,186 @@ masterdbs.each do |mds|
 	end
 
 end
+
+puts ""
+puts "Searching Columns Names..."
+puts ""
+#Searching for column matches
+
+
+masterdbs.each do |mds|
+	
+	keywords.each do |keyword|
+
+		finalhash[mds].each do |schema, table|
+
+			table.each do |tablename, column|
+
+				column.each do |item|
+
+					if keyword == item
+
+					#Check Row Count
+					client.execute("SET ANSI_NULLS, QUOTED_IDENTIFIER, CONCAT_NULL_YIELDS_NULL, ANSI_WARNINGS, ANSI_PADDING ON;")
+					result = client.execute("SELECT COUNT([" + item.to_s + "]) FROM [" + mds.to_s + "].[" + schema.to_s + "].[" + tablename.to_s + "]")
+					
+					rowcount = 0
+					if (result.each[0][""]) > opts[:rowcount].to_i
+					rowcount = (result.each[0][""]).to_i
+					
+					puts "Found '" + keyword.yellow + "' in " + mds.to_s.white + " > " + schema.to_s.white + " > " + tablename.to_s.white + " | Rows:".white + (result.each[0][""]).to_s
+
+
+					#Output queries to screen
+					if opts[:query]
+					puts "Query: SELECT TOP 10 [" + item.to_s + "] FROM [" + mds.to_s + "].[" + schema.to_s + "].[" + tablename.to_s + "];"	
+					puts ""
+					else
+					puts ""
+					end	
+
+					#Output samples to screen
+					if opts[:sample]
+
+					result = client.execute("SELECT TOP 10 [" + item.to_s + "] FROM [" + mds.to_s + "].[" + schema.to_s + "].[" + tablename.to_s + "]")
+
+					maxdepth = opts[:depth].to_i
+					upperdepth = result.each.count
+
+					count = 0
+								
+					while (count < upperdepth) && (count < maxdepth)
+
+					puts "Row" + (count + 1).to_s + " " + result.each[count].values.join(", ")
+					count += 1
+					end
+					puts ""
+
+					end
+
+					#Output matches to file
+					if opts[:export]
+
+						File.open(opts[:export].to_s,'a') do |file|
+						file.write(mds.to_s + "," + schema.to_s + "," + tablename.to_s + "," + item.to_s + "," + rowcount.to_s + "\n")
+						end
+					end
+
+
+
+					end
+
+					end
+					
+				end
+
+			end
+
+		end
+
+	end
+
+end
+
+
+
+
+# 	finalhash[mds].each do |schema, table|
+
+
+# 		keywords.each do |keyword|
+
+# 			if table.include?(keyword)
+# 				puts "=> " + "Match Found!".yellow + " >" + keyword.to_s.upcase.white + "< table found in the " + mds.to_s.upcase.yellow + " database."
+# 			end
+
+
+# 		end
+
+# 	end
+
+# end
+
+
+#Searching for column matches
+
+# masterdbs.each do |mds|
+
+# 	finalhash[mds].each do |schema, table, column|
+
+# 	end
+
+	# 	keywords.each do |keyword|
+
+	# 		if column.include?(keyword)
+	# 			puts "=> " + "Match Found!".yellow + " >" + keyword.to_s.upcase.white + "< column found in the " + table.to_s.upcase.yellow + " table in the " + mds.to_s.upcase.yellow + " database."
+	# 		end
+
+
+	# 	end
+
+	# end
+
+#end
+
+
+
+# 	finalhash[mds].each do |schema, table|
+
+# 			keywords.each do |keyword|
+
+# 				if keyword.to_s == table.to_s
+# 					puts "Found!"
+# 					result = client.execute("SELECT TOP 10 * FROM " + mds.to_s + ".dbo.[" + table.to_s + "]")
+# 					if result.count > 0
+# 						puts "=> " + "Match Found!".yellow + " >" + keyword.to_s.upcase.white + "< table found in the " + mds.to_s.upcase.yellow + " database."
+						
+
+# 					end
+# 					result.cancel
+
+		
+# 				end
+# 				result.cancel
+
+				
+
+# 			end
+
+		
+
+# 	end
+
+# end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+						
+
+						
+
+						
+
+
+
+
+
+
+
 
 
 
