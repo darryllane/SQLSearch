@@ -29,6 +29,7 @@ EOS
   opt :domain, "Windows Domain Name", :type => :string     		  # Domain for use with Windows auth connection
   opt :wauth, "Use Windows Authentication"                    # flag --monkey, default false
   opt :target, "Target Server IP Address/Hostname", :type => :string     	  # Target IP Address
+  opt :hostfile, "Target Hosts File", :type => :string     	  # Target Hosts File
   opt :database, "Target a Single Database", :type => :string     	  # Target IP Address
   opt :port, "Target Port", :default => 1433
   opt :sample, "Output Sample Data from Matches"			  # Select rows from matched tables
@@ -42,7 +43,6 @@ end
 
 #Create Output File
 if opts[:export]
-
 	File.open(opts[:export].to_s,'a') do |file|
 	file.write("DATABASE,SCHEMA,TABLE,COLUMN,ROWCOUNT\n")
 	end
@@ -59,107 +59,74 @@ end
 
 
 
-
-
-#Create a client Tiny_TDS Windows auth database object
-def createclient(username,password,domain,targetaddress,port)
-	client = TinyTds::Client.new(:username => "#{domain}\\#{username}",:password => "#{password}", :host => "#{targetaddress}", :port => "#{port}")
-	end
-
-#Create a client Tiny_TDS SQL auth database object
-def createclientsql(username,password,targetaddress,port)
-	client = TinyTds::Client.new(:username => "#{username}",:password => "#{password}", :host => "#{targetaddress}", :port => "#{port}")
-	end
-
-
-
-#Test the connection to the server
-
-#Windows Authentication
+#Create Tiny_TDS client
 begin
-if opts[:wauth]
-
-	client = createclient(opts[:username],opts[:password],opts[:domain],opts[:target],opts[:port])
-		if client.active? == true
-			puts ""
-			puts "=> Successfully connected to " + opts[:target].to_s + " with " + opts[:username].to_s + "/" + opts[:password].to_s
-			
-		else
-			puts "X There were connection problems, check your settings."
-		end
-#end
-
-
-#SQL Authentication
+if opts[:domain]
+	client = TinyTds::Client.new(:username => opts[:domain] + "\\" + opts[:username],:password => opts[:password], :host => opts[:target], :port => opts[:port])
 else
-	client = createclientsql(opts[:username],opts[:password],opts[:target],opts[:port])
-		if client.active? == true
-			puts ""
-			puts "=> Successfully connected to " + opts[:target].to_s + " with " + opts[:username].to_s + "/" + opts[:password].to_s
-			
-		else
-			puts "X There were connection problems, check your settings."
-		end
+	client = TinyTds::Client.new(:username => opts[:username],:password => opts[:password], :host => opts[:target], :port => opts[:port])
 end
 rescue
 	puts ""
-	puts "X> Connection to the database failed. Please check your settings."
+	abort("X> Connection to the database failed. Please check your syntax and credentials.")
 	puts ""
-	abort()
 end
+
+
+
+#Confirm server connection
+if client.active? == true
+	puts ""
+	puts "=> Successfully connected to " + opts[:target].to_s + " with " + opts[:username].to_s + "/" + opts[:password].to_s
+			
+else
+	abort "X There were connection problems, check your settings."
+
+end
+
+
 
 #Query the SQL server version
 result = client.execute("SELECT @@VERSION")
-	if result.each[0][""].include?("Server 2005")
-	puts "=> Banner: Microsoft SQL Server 2005"
-	
-	elsif result.each[0][""].include?("Server 2008")
-	puts "=> Banner: Microsoft SQL Server 2008"
-	elsif result.each[0][""].include?("Server 2012")
-	puts "=> Banner: Microsoft SQL Server 2012"
-	elsif result.each[0][""].include?("Server 2000")
+if result.each[0][""].include?("Server 2000")
 	puts "=> Banner: Microsoft SQL Server 2000"
-	else
+elsif result.each[0][""].include?("Server 2003")
+	puts "=> Banner: Microsoft SQL Server 2003"
+elsif result.each[0][""].include?("Server 2008")
+	puts "=> Banner: Microsoft SQL Server 2008"
+elsif result.each[0][""].include?("Server 2012")
+	puts "=> Banner: Microsoft SQL Server 2012"
+else
 	puts "Unknown Version"
-	end
-
-
-
-#Query the master databases
-result = client.execute("SELECT name FROM Master.dbo.sysdatabases")
-masterdbs = []
-count = 0
-while count < result.count do
-	masterdbs.push(result.each[count]["name"])
-	count += 1
-	end
-masterdbs.delete("master")
-masterdbs.delete("tempdb")
-masterdbs.delete("model")
-masterdbs.delete("msdb")
-puts "=> Enumerated " + masterdbs.count.to_s + " non-default databases."
-
-puts "=> Found: #{masterdbs.join(", ")}"
-
-puts ""
-
-
-
-
-
-#Cycle each master database, add each master db as a key to finalhash with tables as values
-
-finalhash = {}
-masterdbs.each do |mds|
-	finalhash[mds] = {}
 end
 
 
-#Single database option
+#Single database option or enumerate all databases
 if opts[:database]
 	masterdbs = [opts[:database]]
 	finalhash = {}
 	finalhash[opts[:database]] = {}
+else
+	#Query the master databases
+	result = client.execute("SELECT name FROM Master.dbo.sysdatabases")
+	masterdbs = []
+	count = 0
+	while count < result.count do
+		masterdbs.push(result.each[count]["name"])
+		count += 1
+		end
+	masterdbs.delete("master")
+	masterdbs.delete("tempdb")
+	masterdbs.delete("model")
+	masterdbs.delete("msdb")
+	puts "=> Enumerated " + masterdbs.count.to_s + " non-default databases."
+	puts "=> Found: #{masterdbs.join(", ")}"
+	puts ""
+	#Cycle each master database, add each master db as a key to finalhash with tables as values
+	finalhash = {}
+	masterdbs.each do |mds|
+	finalhash[mds] = {}
+	end
 end
 
 
@@ -416,45 +383,3 @@ masterdbs.each do |mds|
 	end
 
 end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-						
-
-						
-
-						
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
