@@ -28,14 +28,14 @@ EOS
   opt :password, "SA/Windows Password", :type => :string      # Password for database connection
   opt :domain, "Windows Domain Name", :type => :string     		  # Domain for use with Windows auth connection
   opt :wauth, "Use Windows Authentication"                    # flag --monkey, default false
-  opt :target, "Target Database IP Address/Hostname", :type => :string     	  # Target IP Address
-  opt :database, "Target a single database", :type => :string     	  # Target IP Address
+  opt :target, "Target Server IP Address/Hostname", :type => :string     	  # Target IP Address
+  opt :database, "Target a Single Database", :type => :string     	  # Target IP Address
   opt :port, "Target Port", :default => 1433
-  opt :sample, "Output sample data from matches"			  # Select rows from matched tables
-  opt :depth, "Sample data depth. Max: 10", :default => 1   			  # Quantity of rows to return from sampling
+  opt :sample, "Output Sample Data from Matches"			  # Select rows from matched tables
+  opt :depth, "Sample Data Depth. Max: 10", :default => 1   			  # Quantity of rows to return from sampling
   opt :rowcount, "Minimum Rows", :default => 1   			  # Quantity of rows to return from sampling
-  opt :query, "Show example SQL queries"                  			  # Show example SQL queries
-  opt :export, "Output matches csv file", :type => :string      # Output matches to a file
+  opt :query, "Show Example SQL Queries"                  			  # Show example SQL queries
+  opt :export, "Output Matches CSV File", :type => :string      # Output matches to a file
 
 end
 
