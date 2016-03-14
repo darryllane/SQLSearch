@@ -56,6 +56,11 @@ keywordfile.each do |keyword|
 keywords.push(keyword.to_s.gsub("\n",""))
 end
 
+
+
+
+
+
 #Create a client Tiny_TDS Windows auth database object
 def createclient(username,password,domain,targetaddress,port)
 	client = TinyTds::Client.new(:username => "#{domain}\\#{username}",:password => "#{password}", :host => "#{targetaddress}", :port => "#{port}")
@@ -272,7 +277,7 @@ masterdbs.each do |mds|
 				rowcount = (result.each[0][""]).to_i
 
 				
-				puts "Found '" + keyword.yellow + "' in " + schema.to_s.white + " in " + mds.to_s.white + " | Rows:".white + (result.each[0][""]).to_s
+				puts "Found '" + keyword.yellow + "' > " + mds.to_s.white + " > " + schema.to_s.white + " | Rows:".white + (result.each[0][""]).to_s
 
 
 					#Output queries to screen
@@ -292,6 +297,8 @@ masterdbs.each do |mds|
 					upperdepth = result.each.count
 
 					count = 0
+
+					puts table[tablename].join(", ")
 								
 					while (count < upperdepth) && (count < maxdepth)
 
@@ -354,7 +361,7 @@ masterdbs.each do |mds|
 					if (result.each[0][""]) > opts[:rowcount].to_i
 					rowcount = (result.each[0][""]).to_i
 					
-					puts "Found '" + keyword.yellow + "' in " + mds.to_s.white + " > " + schema.to_s.white + " > " + tablename.to_s.white + " | Rows:".white + (result.each[0][""]).to_s
+					puts "Found '" + keyword.yellow + "' > " + mds.to_s.white + " > " + schema.to_s.white + " > " + tablename.to_s.white + " | Rows:".white + (result.each[0][""]).to_s
 
 
 					#Output queries to screen
@@ -368,10 +375,12 @@ masterdbs.each do |mds|
 					#Output samples to screen
 					if opts[:sample]
 
-					result = client.execute("SELECT TOP 10 [" + item.to_s + "] FROM [" + mds.to_s + "].[" + schema.to_s + "].[" + tablename.to_s + "]")
+					result = client.execute("SELECT TOP 10 * FROM [" + mds.to_s + "].[" + schema.to_s + "].[" + tablename.to_s + "]")
 
 					maxdepth = opts[:depth].to_i
 					upperdepth = result.each.count
+
+					puts table[tablename].join(", ")
 
 					count = 0
 								
@@ -407,77 +416,6 @@ masterdbs.each do |mds|
 	end
 
 end
-
-
-
-
-# 	finalhash[mds].each do |schema, table|
-
-
-# 		keywords.each do |keyword|
-
-# 			if table.include?(keyword)
-# 				puts "=> " + "Match Found!".yellow + " >" + keyword.to_s.upcase.white + "< table found in the " + mds.to_s.upcase.yellow + " database."
-# 			end
-
-
-# 		end
-
-# 	end
-
-# end
-
-
-#Searching for column matches
-
-# masterdbs.each do |mds|
-
-# 	finalhash[mds].each do |schema, table, column|
-
-# 	end
-
-	# 	keywords.each do |keyword|
-
-	# 		if column.include?(keyword)
-	# 			puts "=> " + "Match Found!".yellow + " >" + keyword.to_s.upcase.white + "< column found in the " + table.to_s.upcase.yellow + " table in the " + mds.to_s.upcase.yellow + " database."
-	# 		end
-
-
-	# 	end
-
-	# end
-
-#end
-
-
-
-# 	finalhash[mds].each do |schema, table|
-
-# 			keywords.each do |keyword|
-
-# 				if keyword.to_s == table.to_s
-# 					puts "Found!"
-# 					result = client.execute("SELECT TOP 10 * FROM " + mds.to_s + ".dbo.[" + table.to_s + "]")
-# 					if result.count > 0
-# 						puts "=> " + "Match Found!".yellow + " >" + keyword.to_s.upcase.white + "< table found in the " + mds.to_s.upcase.yellow + " database."
-						
-
-# 					end
-# 					result.cancel
-
-		
-# 				end
-# 				result.cancel
-
-				
-
-# 			end
-
-		
-
-# 	end
-
-# end
 
 
 
