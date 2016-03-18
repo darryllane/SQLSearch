@@ -1,0 +1,6 @@
+DATABASE,SCHEMA,TABLE,COLUMN,ROWCOUNT
+AdventureWorks2008,Production,TransactionHistory,Column,113443
+AdventureWorks2008,Sales,SalesOrderHeader,AccountNumber,31465
+AdventureWorks2008,Sales,SalesOrderHeader,CustomerID,31465
+AdventureWorks2008,Production,TransactionHistory,TransactionID,113443
+AdventureWorks2008,Production,TransactionHistoryArchive,TransactionID,89253
