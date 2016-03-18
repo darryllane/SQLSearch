@@ -233,7 +233,7 @@ masterdbs.each do |mds|
 
 			table.each do |tablename, column|
 
-				if tablename.match(/^#{keyword}$/i)
+				if tablename.to_s.match(/#{keyword}/i)
 
 				#Check Row Count
 					client.execute("SET ANSI_NULLS, QUOTED_IDENTIFIER, CONCAT_NULL_YIELDS_NULL, ANSI_WARNINGS, ANSI_PADDING ON;")
@@ -244,12 +244,12 @@ masterdbs.each do |mds|
 				rowcount = (result.each[0][""]).to_i
 
 				
-				puts "Found '" + keyword.yellow + "' > " + mds.to_s.white + " > " + schema.to_s.white + " | Rows:".white + (result.each[0][""]).to_s
+				puts "Match! '" + keyword.to_s.yellow + "' | " + mds.to_s.white + " > " + schema.to_s.white + " > " + tablename.to_s.white + " | Rows:".white + (result.each[0][""]).to_s
 
 
 					#Output queries to screen
 					if opts[:query]
-					puts "Query: SELECT TOP 10 * FROM [" + mds.to_s + "].[" + schema.to_s + "].[" + keyword.to_s + "];"	
+					puts "Query: SELECT TOP 10 * FROM [" + mds.to_s + "].[" + schema.to_s + "].[" + tablename.to_s + "];"	
 					puts ""
 					else
 					puts ""
@@ -318,17 +318,22 @@ masterdbs.each do |mds|
 
 				column.each do |item|
 
-					if item.match(/^#{keyword}$/i)
+					if item.to_s.match(/#{keyword}/i)
 
+					begin
 					#Check Row Count
 					client.execute("SET ANSI_NULLS, QUOTED_IDENTIFIER, CONCAT_NULL_YIELDS_NULL, ANSI_WARNINGS, ANSI_PADDING ON;")
-					result = client.execute("SELECT COUNT([" + item.to_s + "]) FROM [" + mds.to_s + "].[" + schema.to_s + "].[" + tablename.to_s + "]")
-					
+					result = client.execute("SELECT COUNT([" + item + "]) FROM [" + mds.to_s + "].[" + schema.to_s + "].[" + tablename.to_s + "]")
+					rescue
+						puts "Something went wrong here"
+					end
 					rowcount = 0
+					
+					begin
 					if (result.each[0][""]) > opts[:rowcount].to_i
 					rowcount = (result.each[0][""]).to_i
 					
-					puts "Found '" + keyword.yellow + "' > " + mds.to_s.white + " > " + schema.to_s.white + " > " + tablename.to_s.white + " | Rows:".white + (result.each[0][""]).to_s
+					puts "Match! '" + keyword.to_s.yellow + "' | " + mds.to_s.white + " > " + schema.to_s.white + " > " + tablename.to_s.white + " > " + item.to_s.white + " | Rows:".white + (result.each[0][""]).to_s
 
 
 					#Output queries to screen
@@ -370,6 +375,10 @@ masterdbs.each do |mds|
 
 
 
+					end
+
+					rescue
+						
 					end
 
 					end
