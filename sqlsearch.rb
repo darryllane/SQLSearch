@@ -62,9 +62,9 @@ end
 #Create Tiny_TDS client
 begin
 if opts[:domain]
-	client = TinyTds::Client.new(:username => opts[:domain] + "\\" + opts[:username],:password => opts[:password], :host => opts[:target], :port => opts[:port])
+	client = TinyTds::Client.new(:username => opts[:domain] + "\\" + opts[:username],:password => opts[:password], :host => opts[:target], :port => opts[:port], :timeout => 2)
 else
-	client = TinyTds::Client.new(:username => opts[:username],:password => opts[:password], :host => opts[:target], :port => opts[:port])
+	client = TinyTds::Client.new(:username => opts[:username],:password => opts[:password], :host => opts[:target], :port => opts[:port], :timeout => 2)
 end
 rescue
 	puts ""
@@ -233,7 +233,7 @@ masterdbs.each do |mds|
 
 			table.each do |tablename, column|
 
-				if tablename == keyword.to_s
+				if tablename.match(/^#{keyword}$/i)
 
 				#Check Row Count
 					client.execute("SET ANSI_NULLS, QUOTED_IDENTIFIER, CONCAT_NULL_YIELDS_NULL, ANSI_WARNINGS, ANSI_PADDING ON;")
@@ -318,7 +318,7 @@ masterdbs.each do |mds|
 
 				column.each do |item|
 
-					if keyword == item
+					if item.match(/^#{keyword}$/i)
 
 					#Check Row Count
 					client.execute("SET ANSI_NULLS, QUOTED_IDENTIFIER, CONCAT_NULL_YIELDS_NULL, ANSI_WARNINGS, ANSI_PADDING ON;")
