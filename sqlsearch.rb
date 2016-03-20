@@ -13,7 +13,7 @@ require "text-table"
 
 #Commandline Parsing with Trollop
 opts = Trollop::options do
-version "SQLSearch 1.0"
+version "SQLSearch 2.1.0"
 banner <<-EOS
 
 SQLSearch v1.0
