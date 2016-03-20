@@ -28,7 +28,6 @@ cvv
 spc
 longnumber
 personalid
-pan
 pin
 valid
 expiry
@@ -46,7 +45,6 @@ paris
 ident
 finan
 profit
-total
 pounds
 sterling
 cheque

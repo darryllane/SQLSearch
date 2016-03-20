@@ -7,6 +7,7 @@
 require "tiny_tds"		#Microsoft SQL Database connection gem
 require "colorize"		#String shell output colouring module
 require "trollop"		#Commandline options parser
+require "text-table"
 
 
 
@@ -33,6 +34,7 @@ EOS
   opt :hostfile, "Target Hosts File", :type => :string     	  # Target Hosts File
   opt :database, "Target a Single Database", :type => :string     	  # Target IP Address
   opt :port, "Target Port", :default => 1433
+  opt :keyword, "Specify Specific Keyword (Ignores keywords.txt)", :type => :string
   opt :sample, "Output Sample Data from Matches"			  # Select rows from matched tables
   opt :depth, "Sample Data Depth. Max: 10", :default => 1   			  # Quantity of rows to return from sampling
   opt :rowcount, "Minimum Rows", :default => 1   			  # Quantity of rows to return from sampling
@@ -51,10 +53,15 @@ end
 
 
 #Read in keywords from file.
-keywords = []
-keywordfile = File.new("keywords.txt", "r")
-keywordfile.each do |keyword|
-keywords.push(keyword.to_s.gsub("\n",""))
+if opts[:keyword]
+	keywords = []
+	keywords.push(opts[:keyword])
+else
+	keywords = []
+	keywordfile = File.new("keywords.txt", "r")
+	keywordfile.each do |keyword|
+	keywords.push(keyword.to_s.gsub("\n",""))
+	end
 end
 
 
@@ -259,6 +266,8 @@ masterdbs.each do |mds|
 					#Output sample data to screen
 					if opts[:sample]
 
+					outputtable = Text::Table.new
+
 					result = client.execute("SELECT TOP 10 *  FROM [" + mds.to_s + "].[" + schema.to_s + "].[" + tablename.to_s + "]")
 
 					maxdepth = opts[:depth].to_i
@@ -266,13 +275,14 @@ masterdbs.each do |mds|
 
 					count = 0
 
-					puts table[tablename].join(", ")
+					outputtable.head = table[tablename]
 								
 					while (count < upperdepth) && (count < maxdepth)
 
-					puts "Row" + (count + 1).to_s + " " + result.each[count].values.join(", ")
+					outputtable.rows << result.each[count].values
 					count += 1
 					end
+					puts outputtable.to_s
 					puts ""
 
 					end
@@ -348,20 +358,23 @@ masterdbs.each do |mds|
 					#Output samples to screen
 					if opts[:sample]
 
+					outputtable2 = Text::Table.new
+
 					result = client.execute("SELECT TOP 10 * FROM [" + mds.to_s + "].[" + schema.to_s + "].[" + tablename.to_s + "]")
 
 					maxdepth = opts[:depth].to_i
 					upperdepth = result.each.count
 
-					puts table[tablename].join(", ")
+					outputtable2.head = table[tablename]
 
 					count = 0
 								
 					while (count < upperdepth) && (count < maxdepth)
 
-					puts "Row" + (count + 1).to_s + " " + result.each[count].values.join(", ")
+					outputtable2.rows << result.each[count].values
 					count += 1
 					end
+					puts outputtable2.to_s
 					puts ""
 
 					end
