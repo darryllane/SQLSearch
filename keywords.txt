@@ -7,10 +7,8 @@ transfer
 cash
 bank
 amount
-phone
 acnt
 account
-name
 auth
 authentication
 usr

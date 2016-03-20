@@ -1,3 +1,5 @@
+#!/usr/bin/env ruby
+
 #SQLSearch
 
 
@@ -27,7 +29,6 @@ EOS
   opt :username, "SA/Windows Username", :type => :string      # Username for database connection
   opt :password, "SA/Windows Password", :type => :string      # Password for database connection
   opt :domain, "Windows Domain Name", :type => :string     		  # Domain for use with Windows auth connection
-  opt :wauth, "Use Windows Authentication"                    # flag --monkey, default false
   opt :target, "Target Server IP Address/Hostname", :type => :string     	  # Target IP Address
   opt :hostfile, "Target Hosts File", :type => :string     	  # Target Hosts File
   opt :database, "Target a Single Database", :type => :string     	  # Target IP Address
