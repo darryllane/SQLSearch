@@ -2,7 +2,10 @@
 
 What dependencies are there?
 
-gem install tiny_tds, gem install colorize, gem install trollop
+gem install tiny_tds
+gem install colorize
+gem install trollop
+gem install text-table
 
 What does the tool do?
 

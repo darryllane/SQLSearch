@@ -7,7 +7,7 @@
 require "tiny_tds"		#Microsoft SQL Database connection gem
 require "colorize"		#String shell output colouring module
 require "trollop"		#Commandline options parser
-require "text-table"
+require "text-table"	#Outputs sample data in table form to terminal
 
 
 
