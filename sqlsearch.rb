@@ -38,6 +38,7 @@ EOS
   opt :sample, "Output Sample Data from Matches"			  # Select rows from matched tables
   opt :depth, "Sample Data Depth. Max: 10", :default => 1   			  # Quantity of rows to return from sampling
   opt :rowcount, "Minimum Rows", :default => 1   			  # Quantity of rows to return from sampling
+  opt :truncate, "Truncate Sample Data", :default => 64
   opt :query, "Show Example SQL Queries"                  			  # Show example SQL queries
   opt :export, "Output Matches CSV File", :type => :string      # Output matches to a file
 
@@ -279,8 +280,22 @@ masterdbs.each do |mds|
 								
 					while (count < upperdepth) && (count < maxdepth)
 
-					outputtable.rows << result.each[count].values
+					#Truncate large data values
+					tempvalues = result.each[count].values
+					tempvalues.map! { |value|
+						if(value.to_s.length > opts[:truncate])
+							"TRUNCATED"
+						else
+							value
+						end
+					}
+
+					outputtable.rows << tempvalues
 					count += 1
+
+					#Truncate large data values
+
+
 					end
 					puts outputtable.to_s
 					puts ""
@@ -371,7 +386,17 @@ masterdbs.each do |mds|
 								
 					while (count < upperdepth) && (count < maxdepth)
 
-					outputtable2.rows << result.each[count].values
+					#Truncate large data values
+					tempvalues = result.each[count].values
+					tempvalues.map! { |value|
+						if(value.to_s.length > opts[:truncate])
+							"TRUNCATED"
+						else
+							value
+						end
+					}
+
+					outputtable2.rows << tempvalues
 					count += 1
 					end
 					puts outputtable2.to_s
