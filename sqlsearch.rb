@@ -13,7 +13,7 @@ require "text-table"	#Outputs sample data in table form to terminal
 
 #Commandline Parsing with Trollop
 opts = Trollop::options do
-version "SQLSearch 2.2.0"
+version "SQLSearch 2.2.1"
 banner <<-EOS
 
 SQLSearch v1.0
@@ -27,20 +27,20 @@ Example Usage:
 $ruby sqlsearch.rb -w -u administrator -p Pa55w0rd -d WORKGROUP -t 10.0.0.1 -o output.txt
    
 EOS
-  opt :username, "SA/Windows Username", :type => :string      # Username for database connection
-  opt :password, "SA/Windows Password", :type => :string      # Password for database connection
-  opt :domain, "Windows Domain Name", :type => :string     		  # Domain for use with Windows auth connection
-  opt :target, "Target Server IP Address/Hostname", :type => :string     	  # Target IP Address
-  opt :hostfile, "Target Hosts File", :type => :string     	  # Target Hosts File
-  opt :database, "Target a Single Database", :type => :string     	  # Target IP Address
+  opt :username, "SA/Windows Username", :type => :string      
+  opt :password, "SA/Windows Password", :type => :string      
+  opt :domain, "Windows Domain Name", :type => :string     		  
+  opt :target, "Target Server IP Address/Hostname", :type => :string     	  
+  opt :hostfile, "Target Hosts File", :type => :string     	
+  opt :database, "Target a Single Database", :type => :string     	 
   opt :port, "Target Port", :default => 1433
   opt :keyword, "Specify Specific Keyword (Ignores keywords.txt)", :type => :string
-  opt :sample, "Output Sample Data from Matches"			  # Select rows from matched tables
-  opt :depth, "Sample Data Depth. Max: 10", :default => 1   			  # Quantity of rows to return from sampling
-  opt :rowcount, "Minimum Rows", :default => 1   			  # Quantity of rows to return from sampling
+  opt :sample, "Output Sample Data from Matches"			 
+  opt :depth, "Sample Data Depth. Max: 10", :default => 1   			 
   opt :truncate, "Truncate Sample Data", :default => 64
-  opt :query, "Show Example SQL Queries"                  			  # Show example SQL queries
-  opt :export, "Output Matches CSV File", :type => :string      # Output matches to a file
+  opt :rowcount, "Minimum Row Count", :default => 1   			 
+  opt :query, "Show Example SQL Queries"                  			
+  opt :export, "Output Matches CSV File", :type => :string      
 
 end
 
@@ -99,8 +99,8 @@ end
 result = client.execute("SELECT @@VERSION")
 if result.each[0][""].include?("Server 2000")
 	puts "=> Banner: Microsoft SQL Server 2000"
-elsif result.each[0][""].include?("Server 2003")
-	puts "=> Banner: Microsoft SQL Server 2003"
+elsif result.each[0][""].include?("Server 2005")
+	puts "=> Banner: Microsoft SQL Server 2005"
 elsif result.each[0][""].include?("Server 2008")
 	puts "=> Banner: Microsoft SQL Server 2008"
 elsif result.each[0][""].include?("Server 2012")
@@ -138,6 +138,26 @@ else
 	end
 end
 
+
+#----------------------------------------------
+# Confirm access to each database
+#----------------------------------------------
+masterdbs.each do |mds|
+
+	begin
+	result = client.execute("SELECT DISTINCT TABLE_SCHEMA FROM " + mds.to_s + ".INFORMATION_SCHEMA.TABLES")
+	result.each
+
+	rescue
+		result.cancel
+		puts "\n=> Issues connecting to the >".red + mds.to_s.upcase.white + "< database. Could be lack of privileges.".red
+		puts "   Try using local administator or SA credentials.".red
+		masterdbs.delete(mds)
+		puts ""
+	end
+
+
+end
 
 
 #----------------------------------------------
