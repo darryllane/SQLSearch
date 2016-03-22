@@ -71,9 +71,9 @@ end
 #Create Tiny_TDS client
 begin
 if opts[:domain]
-	client = TinyTds::Client.new(:username => opts[:domain] + "\\" + opts[:username],:password => opts[:password], :host => opts[:target], :port => opts[:port], :timeout => 2)
+	client = TinyTds::Client.new(:username => opts[:domain] + "\\" + opts[:username],:password => opts[:password], :host => opts[:target], :port => opts[:port], :timeout => 10)
 else
-	client = TinyTds::Client.new(:username => opts[:username],:password => opts[:password], :host => opts[:target], :port => opts[:port], :timeout => 2)
+	client = TinyTds::Client.new(:username => opts[:username],:password => opts[:password], :host => opts[:target], :port => opts[:port], :timeout => 10)
 end
 rescue
 	puts ""
@@ -99,6 +99,8 @@ end
 result = client.execute("SELECT @@VERSION")
 if result.each[0][""].include?("Server 2000")
 	puts "=> Banner: Microsoft SQL Server 2000"
+	puts "\nNo support for Microsoft SQL Server 2000 yet..."
+	abort()
 elsif result.each[0][""].include?("Server 2005")
 	puts "=> Banner: Microsoft SQL Server 2005"
 elsif result.each[0][""].include?("Server 2008")
@@ -117,7 +119,7 @@ if opts[:database]
 	finalhash[opts[:database]] = {}
 else
 	#Query the master databases
-	result = client.execute("SELECT name FROM Master.dbo.sysdatabases")
+	result = client.execute("SELECT name FROM master.dbo.sysdatabases")
 	masterdbs = []
 	count = 0
 	while count < result.count do
