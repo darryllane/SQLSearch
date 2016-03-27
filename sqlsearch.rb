@@ -14,7 +14,7 @@ require "net/ping"		#Used to test connection server before database
 
 #Commandline Parsing with Trollop
 opts = Trollop::options do
-version "SQLSearch 2.3.1"
+version "SQLSearch 2.4.1"
 banner <<-EOS
 
 SQLSearch v1.0
