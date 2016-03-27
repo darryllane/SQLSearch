@@ -1,4 +1,4 @@
-# SQLSearch v2.2.1
+# SQLSearch v2.4.1
 
 What dependencies are there?
 
@@ -19,4 +19,4 @@ DATABASE AUTHENTICATION
 $ruby sqlsearch.rb -u sa -p password -t 10.0.0.1
 
 WINDOWS AUTHENTICATION
-$ruby sqlsearch.rb -w -u administrator -p password -d WORKGROUP -t 10.0.0.1
+$ruby sqlsearch.rb -u administrator -p password -d WORKGROUP -t 10.0.0.1
