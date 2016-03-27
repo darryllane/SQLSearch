@@ -2,13 +2,17 @@
 
 What dependencies are there?
 
-gem install tiny_tds
+tiny_tds
 
-gem install colorize
+colorize
 
-gem install trollop
+trollop
 
-gem install text-table
+text-table
+
+new-ping
+
+
 
 # What does the tool do?
 
