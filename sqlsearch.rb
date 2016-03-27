@@ -87,9 +87,8 @@ else
 	client = TinyTds::Client.new(:username => opts[:username],:password => opts[:password], :host => opts[:target], :port => opts[:port], :timeout => 10)
 end
 rescue
-	puts ""
-	abort("X> Connection to the database failed. Please check your syntax and credentials.")
-	puts ""
+	puts "\n=> Connection to the database failed. Please check your syntax and credentials.\n".red
+	abort()
 end
 
 
@@ -97,7 +96,7 @@ end
 #Confirm server connection
 if client.active? == true
 	puts ""
-	puts "=> Database connection successful to with " + opts[:username].to_s + "/" + opts[:password].to_s
+	puts "=> Database connection successful with " + opts[:username].to_s + "/" + opts[:password].to_s
 			
 else
 	abort "X There were connection problems, check your settings."
@@ -108,10 +107,8 @@ end
 
 #Query the SQL server version
 result = client.execute("SELECT @@VERSION")
-if result.each[0][""].include?("Server 2000")
+if result.each[0][""].include?("2000")
 	puts "=> Banner: Microsoft SQL Server 2000"
-	puts "\nNo support for Microsoft SQL Server 2000 yet..."
-	abort()
 elsif result.each[0][""].include?("Server 2005")
 	puts "=> Banner: Microsoft SQL Server 2005"
 elsif result.each[0][""].include?("Server 2008")
@@ -137,10 +134,7 @@ else
 		masterdbs.push(result.each[count]["name"])
 		count += 1
 		end
-	masterdbs.delete("master")
-	masterdbs.delete("tempdb")
-	masterdbs.delete("model")
-	masterdbs.delete("msdb")
+	masterdbs.delete("master") ; masterdbs.delete("tempdb") ; masterdbs.delete("model") ; masterdbs.delete("msdb")
 	puts "=> Enumerated " + masterdbs.count.to_s + " non-default databases."
 	puts "=> Found: #{masterdbs.join(", ")}"
 	puts ""
