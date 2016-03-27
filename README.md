@@ -17,8 +17,8 @@ Example Usage:
 
 $ruby sqlsearch.rb -w -u administrator -p Pa55w0rd -d WORKGROUP -t 10.0.0.1 -o output.txt
    
-  -u, --username=<s>    SA/Windows Username
-  -p, --password=<s>    SA/Windows Password
+-u, --username=<s>    SA/Windows Username
+-p, --password=<s>    SA/Windows Password
   -d, --domain=<s>      Windows Domain Name
   -t, --target=<s>      Target Server IP Address/Hostname
   -a, --database=<s>    Target a Single Database
