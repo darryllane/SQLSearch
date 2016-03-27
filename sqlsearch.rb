@@ -8,19 +8,20 @@ require "tiny_tds"		#Microsoft SQL Database connection gem
 require "colorize"		#String shell output colouring module
 require "trollop"		#Commandline options parser
 require "text-table"	#Outputs sample data in table form to terminal
+require "net/ping"		#Used to test connection server before database
 
 
 
 #Commandline Parsing with Trollop
 opts = Trollop::options do
-version "SQLSearch 2.2.1"
+version "SQLSearch 2.3.1"
 banner <<-EOS
 
 SQLSearch v1.0
-This tool is used to help security consultants locate potentially
+A tool used to help security consultants locate potentially
 sensitive information in Microsoft SQL databases. The table and
 column names are extracted from the database and are compared with
-a list of keywords.
+a list of keywords using regex.
 
 Example Usage:
 
@@ -31,7 +32,6 @@ EOS
   opt :password, "SA/Windows Password", :type => :string      
   opt :domain, "Windows Domain Name", :type => :string     		  
   opt :target, "Target Server IP Address/Hostname", :type => :string     	  
-  opt :hostfile, "Target Hosts File", :type => :string     	
   opt :database, "Target a Single Database", :type => :string     	 
   opt :port, "Target Port", :default => 1433
   opt :keyword, "Specify Specific Keyword (Ignores keywords.txt)", :type => :string
@@ -39,8 +39,9 @@ EOS
   opt :depth, "Sample Data Depth. Max: 10", :default => 1   			 
   opt :truncate, "Truncate Sample Data", :default => 64
   opt :rowcount, "Minimum Row Count", :default => 1   			 
-  opt :query, "Show Example SQL Queries"                  			
-  opt :export, "Output Matches CSV File", :type => :string      
+  opt :query, "Show Example SQL Queries"     
+  opt :hide, "Hide Warning Messages"              			
+  opt :export, "Output Matches to CSV File", :type => :string      
 
 end
 
@@ -66,6 +67,16 @@ else
 end
 
 
+#Test connection to server
+live = Net::Ping::TCP.new(opts[:target],opts[:port],1)
+	if live.ping? == true
+		print "\n=> Server connection successful to " + opts[:target].to_s + ":" + opts[:port].to_s
+	else
+		puts "\n=> Server connection failed to " + opts[:target].to_s + ":" + opts[:port].to_s + "\n\n"
+		abort()
+	end
+
+
 
 
 #Create Tiny_TDS client
@@ -86,7 +97,7 @@ end
 #Confirm server connection
 if client.active? == true
 	puts ""
-	puts "=> Successfully connected to " + opts[:target].to_s + " with " + opts[:username].to_s + "/" + opts[:password].to_s
+	puts "=> Database connection successful to with " + opts[:username].to_s + "/" + opts[:password].to_s
 			
 else
 	abort "X There were connection problems, check your settings."
@@ -151,13 +162,16 @@ masterdbs.each do |mds|
 	result.each
 
 	rescue
-		result.cancel
-		puts "\n=> Issues connecting to the >".red + mds.to_s.upcase.white + "< database. Could be lack of privileges.".red
-		puts "   Try using local administator or SA credentials.".red
-		masterdbs.delete(mds)
-		puts ""
+		if !opts[:hide]
+			result.cancel
+			puts "=> Could not access the ".red + mds.to_s.upcase.yellow + "< database. Could be lack of privileges.".red
+			puts "   Try using local administator or SA credentials.".red
+			masterdbs.delete(mds)
+		else
+			result.cancel
+			masterdbs.delete(mds)
+		end
 	end
-
 
 end
 
@@ -192,7 +206,7 @@ masterdbs.each do |mds|
 
 			rescue
 				result.cancel
-				puts "=> Issues connecting to the >".red + mds.to_s.upcase.white + "< database. Could be lack of privileges.".red
+				puts "=> Issues connecting to the >".red + mds.to_s.upcase.yellow + "< database. Could be lack of privileges.".red
 				puts "   Try using local administator or SA credentials.".red
 				masterdbs.delete(mds)
 				puts ""
@@ -225,8 +239,16 @@ masterdbs.each do |mds|
 
 			columnlist = []
 
+			begin
 			result = client.execute("SELECT COLUMN_NAME FROM " + mds + ".INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '" + table + "' AND TABLE_SCHEMA='" + schema + "'")
-
+			result.each
+			rescue
+				result.cancel
+				puts "=> Issues connecting to the >".red + table.to_s.upcase.yellow + "< database. Could be lack of privileges.".red
+				puts "   Try using local administator or SA credentials.".red
+				currenttablelist.delete(table)
+				puts ""
+			end
 
 			#Extract column names from the tiny_tds object and insert them as values to the table keys in the final hash
 				count = 0
@@ -267,15 +289,19 @@ masterdbs.each do |mds|
 				if tablename.to_s.match(/#{keyword}/i)
 
 				#Check Row Count
+				begin
 					client.execute("SET ANSI_NULLS, QUOTED_IDENTIFIER, CONCAT_NULL_YIELDS_NULL, ANSI_WARNINGS, ANSI_PADDING ON;")
 					result = client.execute("SELECT COUNT(*) FROM [" + mds.to_s + "].[" + schema.to_s + "].[" + tablename.to_s + "]")
+				rescue
+					puts "Unable to connect to " + tablename.to_s
+				end
 
 				rowcount = 0
 				if (result.each[0][""]) > opts[:rowcount].to_i	
 				rowcount = (result.each[0][""]).to_i
 
 				
-				puts "Match! '" + keyword.to_s.yellow + "' | " + mds.to_s.white + " > " + schema.to_s.white + " > " + tablename.to_s.white + " | Rows:".white + (result.each[0][""]).to_s
+				puts "Match! '" + keyword.to_s.yellow + "' | " + mds.to_s.yellow + " > " + schema.to_s.yellow + " > " + tablename.to_s.yellow + " | Rows:".yellow + (result.each[0][""]).to_s
 
 
 					#Output queries to screen
@@ -332,12 +358,6 @@ masterdbs.each do |mds|
 						end
 					end
 
-
-
-
-
-						
-
 					end
 
 				end
@@ -373,7 +393,7 @@ masterdbs.each do |mds|
 					client.execute("SET ANSI_NULLS, QUOTED_IDENTIFIER, CONCAT_NULL_YIELDS_NULL, ANSI_WARNINGS, ANSI_PADDING ON;")
 					result = client.execute("SELECT COUNT([" + item + "]) FROM [" + mds.to_s + "].[" + schema.to_s + "].[" + tablename.to_s + "]")
 					rescue
-						puts "Something went wrong here"
+						puts "Unable to connect to " + item.to_s
 					end
 					rowcount = 0
 					
@@ -381,7 +401,7 @@ masterdbs.each do |mds|
 					if (result.each[0][""]) > opts[:rowcount].to_i
 					rowcount = (result.each[0][""]).to_i
 					
-					puts "Match! '" + keyword.to_s.yellow + "' | " + mds.to_s.white + " > " + schema.to_s.white + " > " + tablename.to_s.white + " > " + item.to_s.white + " | Rows:".white + (result.each[0][""]).to_s
+					puts "Match! '" + keyword.to_s.yellow + "' | " + mds.to_s.yellow + " > " + schema.to_s.yellow + " > " + tablename.to_s.yellow + " > " + item.to_s.yellow + " | Rows:".yellow + (result.each[0][""]).to_s
 
 
 					#Output queries to screen
@@ -434,11 +454,13 @@ masterdbs.each do |mds|
 						end
 					end
 
-
-
 					end
 
 					rescue
+						result.each
+						if !opts[:hide]
+							puts "WARNING! Could not access ".red + mds.to_s.red + " > " + schema.to_s.red + " > " + tablename.to_s.red + " > " + item.to_s.red + "\n\n"
+						end
 						
 					end
 
