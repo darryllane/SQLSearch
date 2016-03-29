@@ -127,7 +127,9 @@ if opts[:database]
 	finalhash[opts[:database]] = {}
 else
 	#Query the master databases
+	begin
 	result = client.execute("SELECT name FROM master.dbo.sysdatabases")
+	result.each
 	masterdbs = []
 	count = 0
 	while count < result.count do
@@ -136,12 +138,18 @@ else
 		end
 	masterdbs.delete("master") ; masterdbs.delete("tempdb") ; masterdbs.delete("model") ; masterdbs.delete("msdb")
 	puts "=> Enumerated " + masterdbs.count.to_s + " non-default databases."
-	puts "=> Found: #{masterdbs.join(", ")}"
-	puts ""
+	puts "=> Found: #{masterdbs.join(", ")}\n"
+
 	#Cycle each master database, add each master db as a key to finalhash with tables as values
 	finalhash = {}
 	masterdbs.each do |mds|
 	finalhash[mds] = {}
+	end
+	rescue
+		result.each
+		result.cancel
+		puts "=> Warning! Unable to enumerate master databases. Database version may be too old.".red
+		abort()
 	end
 end
 
@@ -295,7 +303,7 @@ masterdbs.each do |mds|
 				rowcount = (result.each[0][""]).to_i
 
 				
-				puts "Match! '" + keyword.to_s.yellow + "' | " + mds.to_s.yellow + " > " + schema.to_s.yellow + " > " + tablename.to_s.yellow + " | Rows:".yellow + (result.each[0][""]).to_s
+				puts "Match! '" + keyword.to_s.green + "' | " + mds.to_s.yellow + " > " + schema.to_s.yellow + " > " + tablename.to_s.yellow + " | Rows:".yellow + (result.each[0][""]).to_s
 
 
 					#Output queries to screen
@@ -395,7 +403,7 @@ masterdbs.each do |mds|
 					if (result.each[0][""]) > opts[:rowcount].to_i
 					rowcount = (result.each[0][""]).to_i
 					
-					puts "Match! '" + keyword.to_s.yellow + "' | " + mds.to_s.yellow + " > " + schema.to_s.yellow + " > " + tablename.to_s.yellow + " > " + item.to_s.yellow + " | Rows:".yellow + (result.each[0][""]).to_s
+					puts "Match! '" + keyword.to_s.green + "' | " + mds.to_s.yellow + " > " + schema.to_s.yellow + " > " + tablename.to_s.yellow + " > " + item.to_s.yellow + " | Rows:".yellow + (result.each[0][""]).to_s
 
 
 					#Output queries to screen
