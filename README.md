@@ -1,4 +1,4 @@
-# SQLSearch v2.5.1
+# SQLSearch v2.5.2
 
 What dependencies are there?
 
