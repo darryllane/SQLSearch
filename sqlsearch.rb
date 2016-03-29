@@ -14,25 +14,26 @@ require "net/ping"		#Used to test connection server before database
 
 #Commandline Parsing with Trollop
 opts = Trollop::options do
-version "SQLSearch 2.5.2"
-banner <<-EOS
+version "SQLSearch 2.5.3"
+banner <<-EOS    
 
-SQLSearch v1.0
-A tool used to help security consultants locate potentially
-sensitive information in Microsoft SQL databases. The table and
-column names are extracted from the database and are compared with
-a list of keywords using regex.
+   ____ ____    __    ____ ____ ___    ___   _____ __ __
+  / __// __ \\  / /   / __// __// _ |  / _ \\ / ___// // /
+ _\\ \\ / /_/ / / /__ _\\ \\ / _/ / __ | / , _// /__ / _  / 
+/___/ \\___\\_\\/____//___//___//_/ |_|/_/|_| \\___//_//_/  
+                                                                                      
+v2.5.3
 
 Example Usage:
 
-$ruby sqlsearch.rb -w -u administrator -p Pa55w0rd -d WORKGROUP -t 10.0.0.1 -o output.txt
+$ruby sqlsearch.rb -u administrator -p Pa55w0rd -d WORKGROUP -t 10.0.0.1 -o output.txt
    
 EOS
   opt :username, "SA/Windows Username", :type => :string      
   opt :password, "SA/Windows Password", :type => :string      
   opt :domain, "Windows Domain Name", :type => :string     		  
   opt :target, "Target Server IP Address/Hostname", :type => :string     	  
-  opt :database, "Target a Single Database", :type => :string     	 
+  opt :database, "Target a Single Database (will not enumerate all databases)", :type => :string     	 
   opt :port, "Target Port", :default => 1433
   opt :keyword, "Specify Specific Keyword (Ignores keywords.txt)", :type => :string
   opt :sample, "Output Sample Data from Matches"			 
@@ -44,6 +45,7 @@ EOS
   opt :export, "Output Matches to CSV File", :type => :string      
 
 end
+
 
 
 #Create Output File
