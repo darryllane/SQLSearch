@@ -10,12 +10,22 @@ SQLSearch is a tool intended for penetration testers, helping them to locate pot
 
 ##Usage Example
 
-You can issue 'ruby sqlsearch.rb --help' for a list of commands. However, the most basic connection syntax would be:
+You can issue './sqlsearch.rb --help' for a list of commands. However, the most basic connection syntax would be:
 
-DATABASE AUTHENTICATION
-$ruby sqlsearch.rb -u sa -p password -t 10.0.0.1
+###DATABASE AUTHENTICATION
 
-WINDOWS AUTHENTICATION
-$ruby sqlsearch.rb -u administrator -p password -d WORKGROUP -t 10.0.0.1
+$./sqlsearch.rb -u sa -p password -t 10.0.0.1
+
+###WINDOWS AUTHENTICATION
+
+$./sqlsearch.rb -u administrator -p password -d WORKGROUP -t 10.0.0.1
 
 ##Options
+
+-u --username    Specify the database/Windows username
+
+-p --password    Specify the database/Windows password
+
+
+
+
