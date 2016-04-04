@@ -17,6 +17,10 @@ $./sqlsearch.rb -u sa -p password -t 10.0.0.1
 $./sqlsearch.rb -u administrator -p password -d WORKGROUP -t 10.0.0.1
 
 ##Options
+- -u --username    Specify the database/Windows username
+- -p --password    Specify the database/Windows password
+- item
+
 
 -u --username    Specify the database/Windows username
 -p --password    Specify the database/Windows password
