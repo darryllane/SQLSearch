@@ -12,11 +12,14 @@ SQLSearch is a tool intended for penetration testers, helping them to locate pot
 
 You can issue './sqlsearch.rb --help' for a list of commands. However, the most basic connection syntax would be:
 
+```
 $./sqlsearch.rb -u sa -p password -t 10.0.0.1
 
 $./sqlsearch.rb -u administrator -p password -d WORKGROUP -t 10.0.0.1
+```
 
 ##Options
+```
 -u --username    Specify the database/Windows username  
 -p --password    Specify the database/Windows password  
 -d --domain      Specify the Windows domain  
@@ -30,4 +33,4 @@ $./sqlsearch.rb -u administrator -p password -d WORKGROUP -t 10.0.0.1
 -w --rowcount    Specify the minimum Row Count (Default is 1)  
 -v --verbose     Show Verbose Output  
 -x --export      Output Matches to CSV File  
-
+```
