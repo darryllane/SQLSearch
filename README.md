@@ -4,7 +4,7 @@
 
 sudo bundle install
 
-Description
+##Description
 
 SQLSearch is a tool intended for penetration testers, helping them to locate potentially sensitive information is large Microsoft SQL databases. Connecting with either Sa or Windows authentication, the script will enumerate all table/column names and compare them with a list of keywords. Additionally, a small sample of 10 rows of data can be outputed to confirm if an issue exists. Blank tables will not be included in the output. This tool is not intended to be used to navigate SQL databases, just simply to locate starting points where sensitive data may exist.
 
@@ -31,5 +31,3 @@ $./sqlsearch.rb -u administrator -p password -d WORKGROUP -t 10.0.0.1
 -v --verbose     Show Verbose Output  
 -x --export      Output Matches to CSV File  
 
-#Screenshot
-![Screenshot of help menu]({{site.baseurl}}//Screen%20Shot%202016-04-04%20at%2014.23.04.png)
