@@ -40,442 +40,787 @@ EOS
   opt :depth, "Sample Data Depth. Max: 10", :default => 1   			 
   opt :truncate, "Truncate Sample Data", :default => 64
   opt :rowcount, "Minimum Row Count", :default => 1   			 
-  opt :query, "Show Example SQL Queries"     
-  opt :hide, "Hide Warning Messages"              			
+  opt :verbose, "Show Verbose Output"              			
   opt :export, "Output Matches to CSV File", :type => :string      
 
 end
 
 
-
-#Create Output File
-if opts[:export]
-	File.open(opts[:export].to_s,'a') do |file|
-	file.write("DATABASE,SCHEMA,TABLE,COLUMN,ROWCOUNT\n")
-	end
-end
-
-
-#Read in keywords from file.
-if opts[:keyword]
-	keywords = []
-	keywords.push(opts[:keyword])
-else
-	keywords = []
-	keywordfile = File.new("keywords.txt", "r")
-	keywordfile.each do |keyword|
-	keywords.push(keyword.to_s.gsub("\n",""))
-	end
-end
-
-
-#Test connection to server
-live = Net::Ping::TCP.new(opts[:target],opts[:port],1)
-	if live.ping? == true
-		print "\n=> Server connection successful to " + opts[:target].to_s + ":" + opts[:port].to_s
-	else
-		puts "\n=> Server connection failed to " + opts[:target].to_s + ":" + opts[:port].to_s + "\n\n"
-		abort()
-	end
-
-
-
-
-#Create Tiny_TDS client
-begin
-if opts[:domain]
-	client = TinyTds::Client.new(:username => opts[:domain] + "\\" + opts[:username],:password => opts[:password], :host => opts[:target], :port => opts[:port], :timeout => 10)
-else
-	client = TinyTds::Client.new(:username => opts[:username],:password => opts[:password], :host => opts[:target], :port => opts[:port], :timeout => 10)
-end
-rescue
-	puts "\n=> Connection to the database failed. Please check your syntax and credentials.\n".red
+#Check User Syntax
+unless opts[:username] && opts[:password] && opts[:target]
+	puts "Please specify a username (-u), a password (-p) and a target host (-t)".red
 	abort()
 end
 
 
 
-#Confirm server connection
-if client.active? == true
-	puts ""
-	puts "=> Database connection successful with " + opts[:username].to_s + "/" + opts[:password].to_s
-			
-else
-	abort "X There were connection problems, check your settings."
+class EnumerateDatabaseStructure
 
-end
+	attr_reader :finalhash, :client
 
+	def initialize(username,password,target, port = 1433, domain = nil, database = nil, verbose = false)
 
+	#attr_reader :finalhash
 
-#Query the SQL server version
-result = client.execute("SELECT @@VERSION")
-if result.each[0][""].include?("2000")
-	puts "=> Banner: Microsoft SQL Server 2000"
-elsif result.each[0][""].include?("Server 2005")
-	puts "=> Banner: Microsoft SQL Server 2005"
-elsif result.each[0][""].include?("Server 2008")
-	puts "=> Banner: Microsoft SQL Server 2008"
-elsif result.each[0][""].include?("Server 2012")
-	puts "=> Banner: Microsoft SQL Server 2012"
-else
-	puts "Unknown Version"
-end
+	@username = username
+	@password = password
+	@target = target
+	@port = port
+	@domain = domain
+	@database = database
+	@verbose = verbose
+	@masterdbs = []
+	@finalhash = {}
+	@client = nil
 
+	end
 
-#Single database option or enumerate all databases
-if opts[:database]
-	masterdbs = [opts[:database]]
-	finalhash = {}
-	finalhash[opts[:database]] = {}
-else
-	#Query the master databases
-	begin
-	result = client.execute("SELECT name FROM master.dbo.sysdatabases")
-	result.each
-	masterdbs = []
-	count = 0
-	while count < result.count do
-		masterdbs.push(result.each[count]["name"])
-		count += 1
+	def pingHost
+		begin
+		live = Net::Ping::TCP.new(@target,@port,1)
+			if live.ping?
+				print "Server connection successful to #{@target}:#{@port}\n".yellow
+			else
+				puts "Server connection failed to #{@target}:#{@port}".red ; abort()
+			end
+		rescue
+			puts "There was an issue with the network connection".red ; abort()
 		end
-	masterdbs.delete("master") ; masterdbs.delete("tempdb") ; masterdbs.delete("model") ; masterdbs.delete("msdb")
-	puts "=> Enumerated " + masterdbs.count.to_s + " non-default databases."
-	puts "=> Found: #{masterdbs.join(", ")}\n"
-
-	#Cycle each master database, add each master db as a key to finalhash with tables as values
-	finalhash = {}
-	masterdbs.each do |mds|
-	finalhash[mds] = {}
 	end
-	rescue
-		result.each
-		result.cancel
-		puts "=> Warning! Unable to enumerate master databases. Database version may be too old.".red
-		abort()
-	end
-end
 
 
-#----------------------------------------------
-# Confirm access to each database
-#----------------------------------------------
-masterdbs.each do |mds|
+	def createClient
+		begin
+ 		if @domain
+ 			@client = TinyTds::Client.new(:username => @domain + "\\" + @username,:password => @password, \
+ 			                             :host => @target, :port => @port, :timeout => 2)
+ 		else
+ 			@client = TinyTds::Client.new(:username => @username,:password => @password, :host => @target, \
+ 																	 :port => @port, :timeout => 2)
+ 		end
+ 		rescue
+ 		puts "Connection to the database failed. Please check your syntax and credentials.".red ; abort()
+ 		end
 
-	begin
-	result = client.execute("SELECT DISTINCT TABLE_SCHEMA FROM " + mds.to_s + ".INFORMATION_SCHEMA.TABLES")
-	result.each
-
-	rescue
-		if !opts[:hide]
-			result.cancel
-			puts "=> Could not access the ".red + mds.to_s.upcase.yellow + "< database. Could be lack of privileges.".red
-			puts "   Try using local administator or SA credentials.".red
-			masterdbs.delete(mds)
+ 		#Confirm server connection
+		if @client.active?
+		 	puts "Database connection successful with #{@username}/#{@password}".yellow
 		else
-			result.cancel
-			masterdbs.delete(mds)
+		 	puts "There were connection problems, check your settings.".red ; abort()
+		end
+
+ 	end
+
+
+ 	def queryDbsVersion
+ 		begin
+	 		result = @client.execute("SELECT @@VERSION")
+			if result.each[0][""].include?("2000")
+				puts "Banner: Microsoft SQL Server 2000".yellow
+			elsif result.each[0][""].include?("Server 2005")
+				puts "Banner: Microsoft SQL Server 2005".yellow
+			elsif result.each[0][""].include?("Server 2008")
+				puts "Banner: Microsoft SQL Server 2008".yellow
+			elsif result.each[0][""].include?("Server 2012")
+				puts "Banner: Microsoft SQL Server 2012".yellow
+			else
+				puts "Unknown Version"
+			end
+		rescue
+			puts "There was an issue enumerating the database version.".red
 		end
 	end
 
+
+	def queryMasterDbs
+
+		#If the user selects a specific target database
+		if @database
+ 			@masterdbs = [@database]
+ 			@finalhash[@database] = {}
+ 			puts "Targeting '#{@database}' database specifically".yellow
+
+ 		else
+
+ 			#Enumerate the non-default databases
+		 	begin
+			 	result = @client.execute("SELECT name FROM master.dbo.sysdatabases") ; result.each
+			 	count = 0
+			 	while count < result.count do
+			 		@masterdbs.push(result.each[count]["name"])
+			 		count += 1
+			 	end
+			 	@masterdbs.delete("master") ; @masterdbs.delete("tempdb") ; @masterdbs.delete("model") ; @masterdbs.delete("msdb")
+			 	puts "Enumerated #{@masterdbs.count.to_s} non-default databases.".yellow
+			 	puts "Found: #{@masterdbs.join(", ")}".yellow
+
+			 	#Cycle each master database, add each master db as a key to finalhash with tables as values
+			 	@masterdbs.each do |mds| 
+			 		@finalhash[mds] = {} 
+			 	end
+
+		 	rescue
+		 		result.each
+		 		puts "Warning! Unable to enumerate master databases!".red ; abort()
+		 	end
+		end
+	end
+
+
+	def queryDbsConnections
+		@masterdbs.each do |mds|
+
+		 	begin
+		 	result = @client.execute("SELECT DISTINCT TABLE_SCHEMA FROM [" + mds.to_s + "].INFORMATION_SCHEMA.TABLES")
+		 	result.each
+		 	puts "Access to '#{mds}' confirmed.".yellow if @verbose
+
+		 	rescue
+		 	result.each
+		 	puts "Could not access the '#{mds}' database. Could be lack of privileges.".red
+		 	@masterdbs.delete(mds)
+			 	if @masterdbs.length < 1
+			 		puts "There are no more valid databases to access.".red ; abort()
+			 	end
+		 	end
+		end
+ 	end
+
+ 	def BuildDatabaseHash
+
+ 		@masterdbs.each do |mds|
+
+ 			@schemalist = []
+
+			#Extract the schemas
+			begin
+				result = @client.execute("SELECT DISTINCT TABLE_SCHEMA FROM #{mds}.INFORMATION_SCHEMA.TABLES")
+				puts "Successfully enumerated #{mds} database schema".yellow if @verbose
+	 			count = 0
+	 			while count < result.each.count do
+			 		@schemalist.push(result.each[count]["TABLE_SCHEMA"])
+			 		count += 1
+		 		end
+
+		 	rescue
+		 		puts "There was an issue enumerating the database schema".red
+		 	end
+
+			@schemalist.each do |schema|
+	
+	 			#Enumerate tables names
+				begin
+					result = @client.execute("SELECT TABLE_NAME FROM #{mds}.INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='#{schema}';")
+					puts "Successfully enumerated tables from #{mds} > #{schema}".yellow if @verbose
+		
+				rescue
+	 				puts "Issues enumerating tables from the #{mds} database. Could be lack of privileges.".red
+	 				@schemalist.delete(schema)
+	 				if @schemalist.length < 1
+				 		puts "There are no more valid schemas to access".red
+				 	end
+	 			end
+
+	 			#Add schemas to final hash
+
+	 			@finalhash[mds][schema] = {}
+
+	 			#Add schemas to final hash
+				currenttablelist = []
+				count = 0
+	 			while count < result.each.count do
+					currenttablelist.push(result.each[count]["TABLE_NAME"])
+	 				count += 1
+	 			end
+
+	 			currenttablelist.each do |table|
+	 				@finalhash[mds][schema][table] = {}
+	 			end
+
+
+
+	 			#Extract column names from the database
+	 			currenttablelist.each do |table|
+
+	 			columnlist = []
+
+	 			begin
+		 			result = @client.execute("SELECT COLUMN_NAME FROM #{mds}.INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '#{table}' AND TABLE_SCHEMA='#{schema}'")
+		 			puts "Successfully enumerated columns from #{mds} > #{schema} > #{table}".yellow if @verbose
+		 			result.each
+	 			rescue
+	 				result.each
+	 				puts "Issues enumerating columns from the #{table} table on the #{mds} database. Could be lack of privileges.".red
+	 				currenttablelist.delete(table)
+	 			end
+
+	 			#Extract column names from the tiny_tds object and insert them as values to the table keys in the final hash
+	 			count = 0
+	 			while count < result.each.count do
+	 				columnlist.push(result.each[count]["COLUMN_NAME"])
+	 				count += 1
+	 				result.each
+	 			end	
+
+	 			@finalhash[mds][schema][table] = columnlist
+
+	 			end
+			end
+		end
+	end
 end
 
 
-#----------------------------------------------
-# Building the database information hash
-#----------------------------------------------
 
-masterdbs.each do |mds|
+class KeywordSearch
+
+	attr_reader :table_matches, :column_matches
+
+	def initialize(dbs_structure, keyword = nil, rowcount = 0, port = 1433, domain = nil,truncate = 64,username,password,target,verbose,sample,depth)
+			puts "#{@username} #{@password} #{@domain} #{@target} #{@port}"
 
 
-	#Extract the schemas
-	result = client.execute("SELECT DISTINCT TABLE_SCHEMA FROM " + mds.to_s + ".INFORMATION_SCHEMA.TABLES")
+		@finalhash = dbs_structure
+		@masterdbs = readMasterdbs
+		@keyword = keyword
+		@keywords = readKeywords
+		@rowcount = rowcount
+		@verbose = verbose
+		@sample = sample
+		@depth = depth
+		@truncate = truncate
 
-	schemalist = []
-	count = 0
-	while count < result.each.count do
-		schemalist.push(result.each[count]["TABLE_SCHEMA"])
-		count += 1
-		result.cancel
+		@username = username
+		@password = password
+		@target = target
+		@port = port
+		@domain = domain
+
+		createClient
+
 	end
 
+	def readMasterdbs
+		return @finalhash.keys
+	end
 
-	schemalist.each do |schema|
+	def readKeywords
+		if @keyword
+ 			keywords = []
+ 			keywords.push(@keyword)
+		else
+ 			keywords = []
+ 			keywordfile = File.open("keywords.txt", "r")
+ 			keywordfile.each do |keyword|
+ 			keywords.push(keyword.to_s.gsub("\n",""))
+ 			end
+ 		end
+ 		return keywords
+ 	end
 
-	
-			#Select table names from the database with tiny_tds
-			begin
-			
-			result = client.execute("SELECT TABLE_NAME FROM " + mds.to_s + ".INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='" + schema.to_s + "'")
-			result.each
-
-			rescue
-				result.cancel
-				puts "=> Issues connecting to the >".red + mds.to_s.upcase.yellow + "< database. Could be lack of privileges.".red
-				puts "   Try using local administator or SA credentials.".red
-				masterdbs.delete(mds)
-				puts ""
-			end
-
-			#Add Schemas to final hash
-
-			finalhash[mds][schema] = {}
-
-
-			#Extract table names from the tiny_tds object and insert them as keys in the final hash
-			currenttablelist = []
-			count = 0
-			while count < result.each.count do
-
-				currenttablelist.push(result.each[count]["TABLE_NAME"])
-				count += 1
-				result.cancel
-
-			end
-
-			currenttablelist.each do |table|
-				finalhash[mds][schema][table] = {}
-			end
-
-
-
-			#Select column names from the database with tiny_tds
-			currenttablelist.each do |table|
-
-			columnlist = []
-
-			begin
-			result = client.execute("SELECT COLUMN_NAME FROM " + mds + ".INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '" + table + "' AND TABLE_SCHEMA='" + schema + "'")
-			result.each
-			rescue
-				result.cancel
-				puts "=> Issues connecting to the >".red + table.to_s.upcase.yellow + "< database. Could be lack of privileges.".red
-				puts "   Try using local administator or SA credentials.".red
-				currenttablelist.delete(table)
-				puts ""
-			end
-
-			#Extract column names from the tiny_tds object and insert them as values to the table keys in the final hash
-				count = 0
-				while count < result.each.count do
-					columnlist.push(result.each[count]["COLUMN_NAME"])
-					count += 1
-				result.cancel
-				end	
-
-			finalhash[mds][schema][table] = columnlist
-
-			end
-
-
+ 	def createClient
+		begin
+  		if @domain
+  			@client = TinyTds::Client.new(:username => @domain + "\\" + @username,:password => @password, \
+  			                             :host => @target, :port => @port, :timeout => 2)
+  		else
+  			@client = TinyTds::Client.new(:username => @username,:password => @password, :host => @target, \
+  																	 :port => @port, :timeout => 2)
+  		end
+		rescue
+	 		puts "Connection to the database failed. Please check your syntax and credentials.".red ; abort()
 		end
 
+  	#Confirm server connection
+ 		if @client.active? == false
+	 	 	puts "There were connection problems, check your settings.".red ; abort()
+ 		end
+ 	end
 
-end	
+
+ 	def searchHash
+
+ 	@table_matches = []
+ 	@column_matches = []
+
+ 	#5 loops to iterate through the database hash
+	 	@masterdbs.each do |mds|	
+	 		@keywords.each do |keyword|
+	 			@finalhash[mds].each do |schema, table|
+	 				table.each do |tablename, column|
+
+	 					if tablename.to_s.match(/#{keyword}/i)
+
+			 				#Check Row Count
+			 				begin
+								@client.execute("SET ANSI_NULLS, QUOTED_IDENTIFIER, CONCAT_NULL_YIELDS_NULL, ANSI_WARNINGS, ANSI_PADDING ON;")
+			 					result = @client.execute("SELECT COUNT(*) FROM [#{mds}].[#{schema}].[#{tablename}]")
+							rescue
+								puts "Unable to connect to " + tablename.to_s
+							end
+
+			 				if (result.each[0][""]) > @rowcount	
+								rowcount = (result.each[0][""]).to_i
+
+								#Table match found
+								table_matches.push("#{mds},#{schema},#{tablename},padcolumn,#{result.each[0][""].to_s}")
+				 				puts "Match! '" + keyword.to_s.green + "' | #{mds} > #{schema} > #{tablename} | ".yellow + "Rows:".yellow + result.each[0][""].to_s
+
+				 				#Output sample if option selection
+				 				if @sample
+				 					outputSampleData(mds,schema,table,tablename,@depth,@truncate)
+				 				end
+			 				end
+
+		 				end
+
+	 					column.each do |item|
+
+	 						if item.to_s.match(/#{keyword}/i)
+	 							#Check Row Count
+			 					begin
+	 								@client.execute("SET ANSI_NULLS, QUOTED_IDENTIFIER, CONCAT_NULL_YIELDS_NULL, ANSI_WARNINGS, ANSI_PADDING ON;")
+	 								result = @client.execute("SELECT COUNT([#{item}]) FROM [#{mds}].[#{schema}].[#{tablename}]")
+		 						rescue
+	 								puts "Unable to enumerate row count from #{item} column".red
+		 						end
+	 						
+						
+	 							begin
+	 								if (result.each[0][""]) > @rowcount
+		 								rowcount = (result.each[0][""]).to_i
+										
+										#Column match found
+										column_matches.push("#{mds},#{schema},#{tablename},#{item},#{result.each[0][""].to_s}")
+		 								puts "Match! '" + keyword.to_s.green + "' | #{mds} > #{schema} > #{tablename} > #{item} | ".yellow + "Rows:".yellow + result.each[0][""].to_s
+	 								
+		 								#Output sample if option selection
+				 						if @sample
+				 						outputSampleData(mds,schema,table,tablename,@depth,@truncate)
+				 						end
+
+	 								end
+	 							rescue
+	 								puts "Unable to access #{mds} > #{schema} > #{tablename} > #{item}".red	if @verbose
+	 							end
+	 						end
+	 					end
+	 				end
+	 			end
+	 		end
+	 	end
+ 	end
 
 
-#------------------------------------------------------
-# Searching the database information hash for keywords
-#------------------------------------------------------
+ 	def outputSampleData(mds,schema,table,tablename,depth,truncate)
 
-puts ""
-puts "Searching Table Names..."
-puts ""
-#Searching for table matches
+ 	
+ 		@depth = depth
+ 		@truncate = truncate
+ 		@mds = mds
+ 		@schema = schema
+ 		@table = table
+ 		@tablename = tablename
 
-masterdbs.each do |mds|
+ 		outputtable = Text::Table.new
 
-	keywords.each do |keyword|
+ 		result = @client.execute("SELECT TOP 10 * FROM [#{mds}].[#{schema}].[#{tablename}]")
+ 	
+ 		userdepth = @depth
+ 		maxdepth = result.each.count
 
-		finalhash[mds].each do |schema, table|
+ 		outputtable.head = table[tablename]
 
-			table.each do |tablename, column|
+ 		count = 0						
+		while (count < userdepth) && (count < maxdepth)
 
-				if tablename.to_s.match(/#{keyword}/i)
+			#Truncate large data values
+			tempvalues = result.each[count].values
+	 		tempvalues.map! { |value|
+				if(value.to_s.length > @truncate)
+	 				"TRUNCATED"
+		 		else
+		 			value
+	 			end
+	 			}
+	 		#Correct NULL values
+	 			tempvalues.map! { |value|
+				if(value == nil)
+	 				"NULL VALUE"
+		 		else
+		 			value
+	 			end
+	 			}
 
-				#Check Row Count
-				begin
-					client.execute("SET ANSI_NULLS, QUOTED_IDENTIFIER, CONCAT_NULL_YIELDS_NULL, ANSI_WARNINGS, ANSI_PADDING ON;")
-					result = client.execute("SELECT COUNT(*) FROM [" + mds.to_s + "].[" + schema.to_s + "].[" + tablename.to_s + "]")
-				rescue
-					puts "Unable to connect to " + tablename.to_s
-				end
 
-				rowcount = 0
-				if (result.each[0][""]) > opts[:rowcount].to_i	
-				rowcount = (result.each[0][""]).to_i
+	 		outputtable.rows << tempvalues
+		 	count += 1
+	 	end
+  	puts outputtable.to_s
+ 	end
+end
+
+class CreateFileOutput
+
+	def initialize(table_matches,column_matches,filename)
+		@table_matches = table_matches
+		@column_matches = column_matches
+		@filename = filename
+
+		File.open(@filename,'w') do |file|
+ 		file.write("DATABASE,SCHEMA,TABLE,COLUMN,ROWCOUNT\n")
+ 		file.close
+		end
+	end
+
+	def createFile
+		begin
+ 		File.open(@filename,'a') do |file|
+ 			@table_matches.each do |entry|
+ 				file.write("#{entry}\n")
+ 				end
+ 			@column_matches.each do |entry|
+ 				file.write("#{entry}\n")
+ 				end
+ 		end
+ 		rescue
+ 			puts "There was a problem creating the output file".red
+ 		end
+ 	end
+end
+
+
+
+
+
+
+
+# 					#Output samples to screen
+
+# 					if opts[:sample]
+
+# 					outputtable2 = Text::Table.new
+
+# 					result = client.execute("SELECT TOP 10 * FROM [" + mds.to_s + "].[" + schema.to_s + "].[" + tablename.to_s + "]")
+
+# 					maxdepth = opts[:depth].to_i
+# 					upperdepth = result.each.count
+
+# 					outputtable2.head = table[tablename]
+
+# 					count = 0
+								
+# 					while (count < upperdepth) && (count < maxdepth)
+
+# 					#Truncate large data values
+# 					tempvalues = result.each[count].values
+# 					tempvalues.map! { |value|
+# 						if(value.to_s.length > opts[:truncate])
+# 							"TRUNCATED"
+# 						else
+# 							value
+# 						end
+# 					}
+
+# 					outputtable2.rows << tempvalues
+# 					count += 1
+# 					end
+# 					puts outputtable2.to_s
+# 					puts ""
+
+# 					end
+
+# 					#Output matches to file
+# 					if opts[:export]
+
+# 						File.open(opts[:export].to_s,'a') do |file|
+# 						file.write(mds.to_s + "," + schema.to_s + "," + tablename.to_s + "," + item.to_s + "," + rowcount.to_s + "\n")
+# 						end
+# 					end
+
+# 					end
+
+# 					rescue
+# 						result.each
+# 						if !opts[:hide]
+# 							puts "WARNING! Could not access ".red + mds.to_s.red + " > " + schema.to_s.red + " > " + tablename.to_s.red + " > " + item.to_s.red + "\n\n"
+# 						end
+						
+# 					end
+
+# 					end
+					
+# 				end
+
+# 			end
+
+# 		end
+
+# 	end
+
+# end
+
+
+
+
+
+
+#Object control - Main program
+
+
+
+enumdb = EnumerateDatabaseStructure.new(opts[:username],\
+																				opts[:password],\
+																				opts[:target],\
+																			  opts[:port],\
+																			  opts[:domain],\
+																			  opts[:database],\
+																			  opts[:verbose],)
+enumdb.pingHost
+enumdb.createClient
+enumdb.queryDbsVersion
+enumdb.queryMasterDbs
+enumdb.queryDbsConnections
+enumdb.BuildDatabaseHash
+
+
+search = KeywordSearch.new(enumdb.finalhash,\
+ 												   opts[:keyword],\
+ 													 opts[:rowcount],\
+ 													 opts[:port],\
+ 													 opts[:domain],\
+ 													 opts[:truncate],\
+ 													 opts[:username],\
+ 												   opts[:password],\
+ 												   opts[:target],\
+ 												   opts[:verbose],\
+ 												   opts[:sample],\
+ 												   opts[:depth],)
+
+
+
+search.searchHash
+
+
+if opts[:export]
+	fileoutput = CreateFileOutput.new(search.table_matches,search.column_matches,opts[:export])
+	fileoutput.createFile
+end
+
+
+
+
+
+
+
+
+
+
+
+
+# #------------------------------------------------------
+# # Searching the database information hash for keywords
+# #------------------------------------------------------
+
+# puts ""
+# puts "Searching Table Names..."
+# puts ""
+# #Searching for table matches
+
+# masterdbs.each do |mds|
+
+# 	keywords.each do |keyword|
+
+# 		finalhash[mds].each do |schema, table|
+
+# 			table.each do |tablename, column|
+
+# 				if tablename.to_s.match(/#{keyword}/i)
+
+# 				#Check Row Count
+# 				begin
+# 					client.execute("SET ANSI_NULLS, QUOTED_IDENTIFIER, CONCAT_NULL_YIELDS_NULL, ANSI_WARNINGS, ANSI_PADDING ON;")
+# 					result = client.execute("SELECT COUNT(*) FROM [" + mds.to_s + "].[" + schema.to_s + "].[" + tablename.to_s + "]")
+# 				rescue
+# 					puts "Unable to connect to " + tablename.to_s
+# 				end
+
+# 				rowcount = 0
+# 				if (result.each[0][""]) > opts[:rowcount].to_i	
+# 				rowcount = (result.each[0][""]).to_i
 
 				
-				puts "Match! '" + keyword.to_s.green + "' | " + mds.to_s.yellow + " > " + schema.to_s.yellow + " > " + tablename.to_s.yellow + " | Rows:".yellow + (result.each[0][""]).to_s
+# 				puts "Match! '" + keyword.to_s.green + "' | " + mds.to_s.yellow + " > " + schema.to_s.yellow + " > " + tablename.to_s.yellow + " | Rows:".yellow + (result.each[0][""]).to_s
 
 
-					#Output queries to screen
-					if opts[:query]
-					puts "Query: SELECT TOP 10 * FROM [" + mds.to_s + "].[" + schema.to_s + "].[" + tablename.to_s + "];"	
-					puts ""
-					else
-					puts ""
-					end	
+# 					#Output queries to screen
+# 					if opts[:query]
+# 					puts "Query: SELECT TOP 10 * FROM [" + mds.to_s + "].[" + schema.to_s + "].[" + tablename.to_s + "];"	
+# 					puts ""
+# 					else
+# 					puts ""
+# 					end	
 
-					#Output sample data to screen
-					if opts[:sample]
+# 					#Output sample data to screen
+# 					if opts[:sample]
 
-					outputtable = Text::Table.new
+# 					outputtable = Text::Table.new
 
-					result = client.execute("SELECT TOP 10 *  FROM [" + mds.to_s + "].[" + schema.to_s + "].[" + tablename.to_s + "]")
+# 					result = client.execute("SELECT TOP 10 *  FROM [" + mds.to_s + "].[" + schema.to_s + "].[" + tablename.to_s + "]")
 
-					maxdepth = opts[:depth].to_i
-					upperdepth = result.each.count
+# 					maxdepth = opts[:depth].to_i
+# 					upperdepth = result.each.count
 
-					count = 0
+# 					count = 0
 
-					outputtable.head = table[tablename]
+# 					outputtable.head = table[tablename]
 								
-					while (count < upperdepth) && (count < maxdepth)
+# 					while (count < upperdepth) && (count < maxdepth)
 
-					#Truncate large data values
-					tempvalues = result.each[count].values
-					tempvalues.map! { |value|
-						if(value.to_s.length > opts[:truncate])
-							"TRUNCATED"
-						else
-							value
-						end
-					}
+# 					#Truncate large data values
+# 					tempvalues = result.each[count].values
+# 					tempvalues.map! { |value|
+# 						if(value.to_s.length > opts[:truncate])
+# 							"TRUNCATED"
+# 						else
+# 							value
+# 						end
+# 					}
 
-					outputtable.rows << tempvalues
-					count += 1
+# 					outputtable.rows << tempvalues
+# 					count += 1
 
-					#Truncate large data values
-
-
-					end
-					puts outputtable.to_s
-					puts ""
-
-					end
-
-					#Output matches to file
-					if opts[:export]
-
-						File.open(opts[:export].to_s,'a') do |file|
-						file.write(mds.to_s + "," + schema.to_s + "," + tablename.to_s + ",Column" + "," + rowcount.to_s + "\n")
-						end
-					end
-
-					end
-
-				end
-
-			end
-
-		end
-
-	end
-
-end
-
-puts ""
-puts "Searching Columns Names..."
-puts ""
-#Searching for column matches
+# 					#Truncate large data values
 
 
-masterdbs.each do |mds|
+# 					end
+# 					puts outputtable.to_s
+# 					puts ""
+
+# 					end
+
+# 					#Output matches to file
+# 					if opts[:export]
+
+# 						File.open(opts[:export].to_s,'a') do |file|
+# 						file.write(mds.to_s + "," + schema.to_s + "," + tablename.to_s + ",Column" + "," + rowcount.to_s + "\n")
+# 						end
+# 					end
+
+# 					end
+
+# 				end
+
+# 			end
+
+# 		end
+
+# 	end
+
+# end
+
+# puts ""
+# puts "Searching Columns Names..."
+# puts ""
+# #Searching for column matches
+
+
+# masterdbs.each do |mds|
 	
-	keywords.each do |keyword|
+# 	keywords.each do |keyword|
 
-		finalhash[mds].each do |schema, table|
+# 		finalhash[mds].each do |schema, table|
 
-			table.each do |tablename, column|
+# 			table.each do |tablename, column|
 
-				column.each do |item|
+# 				column.each do |item|
 
-					if item.to_s.match(/#{keyword}/i)
+# 					if item.to_s.match(/#{keyword}/i)
 
-					begin
-					#Check Row Count
-					client.execute("SET ANSI_NULLS, QUOTED_IDENTIFIER, CONCAT_NULL_YIELDS_NULL, ANSI_WARNINGS, ANSI_PADDING ON;")
-					result = client.execute("SELECT COUNT([" + item + "]) FROM [" + mds.to_s + "].[" + schema.to_s + "].[" + tablename.to_s + "]")
-					rescue
-						puts "Unable to connect to " + item.to_s
-					end
-					rowcount = 0
+# 					begin
+# 					#Check Row Count
+# 					client.execute("SET ANSI_NULLS, QUOTED_IDENTIFIER, CONCAT_NULL_YIELDS_NULL, ANSI_WARNINGS, ANSI_PADDING ON;")
+# 					result = client.execute("SELECT COUNT([" + item + "]) FROM [" + mds.to_s + "].[" + schema.to_s + "].[" + tablename.to_s + "]")
+# 					rescue
+# 						puts "Unable to connect to " + item.to_s
+# 					end
+# 					rowcount = 0
 					
-					begin
-					if (result.each[0][""]) > opts[:rowcount].to_i
-					rowcount = (result.each[0][""]).to_i
+# 					begin
+# 					if (result.each[0][""]) > opts[:rowcount].to_i
+# 					rowcount = (result.each[0][""]).to_i
 					
-					puts "Match! '" + keyword.to_s.green + "' | " + mds.to_s.yellow + " > " + schema.to_s.yellow + " > " + tablename.to_s.yellow + " > " + item.to_s.yellow + " | Rows:".yellow + (result.each[0][""]).to_s
+# 					puts "Match! '" + keyword.to_s.green + "' | " + mds.to_s.yellow + " > " + schema.to_s.yellow + " > " + tablename.to_s.yellow + " > " + item.to_s.yellow + " | Rows:".yellow + (result.each[0][""]).to_s
 
 
-					#Output queries to screen
-					if opts[:query]
-					puts "Query: SELECT TOP 10 [" + item.to_s + "] FROM [" + mds.to_s + "].[" + schema.to_s + "].[" + tablename.to_s + "];"	
-					puts ""
-					else
-					puts ""
-					end	
+# 					#Output queries to screen
+# 					if opts[:query]
+# 					puts "Query: SELECT TOP 10 [" + item.to_s + "] FROM [" + mds.to_s + "].[" + schema.to_s + "].[" + tablename.to_s + "];"	
+# 					puts ""
+# 					else
+# 					puts ""
+# 					end	
 
-					#Output samples to screen
-					if opts[:sample]
+# 					#Output samples to screen
+# 					if opts[:sample]
 
-					outputtable2 = Text::Table.new
+# 					outputtable2 = Text::Table.new
 
-					result = client.execute("SELECT TOP 10 * FROM [" + mds.to_s + "].[" + schema.to_s + "].[" + tablename.to_s + "]")
+# 					result = client.execute("SELECT TOP 10 * FROM [" + mds.to_s + "].[" + schema.to_s + "].[" + tablename.to_s + "]")
 
-					maxdepth = opts[:depth].to_i
-					upperdepth = result.each.count
+# 					maxdepth = opts[:depth].to_i
+# 					upperdepth = result.each.count
 
-					outputtable2.head = table[tablename]
+# 					outputtable2.head = table[tablename]
 
-					count = 0
+# 					count = 0
 								
-					while (count < upperdepth) && (count < maxdepth)
+# 					while (count < upperdepth) && (count < maxdepth)
 
-					#Truncate large data values
-					tempvalues = result.each[count].values
-					tempvalues.map! { |value|
-						if(value.to_s.length > opts[:truncate])
-							"TRUNCATED"
-						else
-							value
-						end
-					}
+# 					#Truncate large data values
+# 					tempvalues = result.each[count].values
+# 					tempvalues.map! { |value|
+# 						if(value.to_s.length > opts[:truncate])
+# 							"TRUNCATED"
+# 						else
+# 							value
+# 						end
+# 					}
 
-					outputtable2.rows << tempvalues
-					count += 1
-					end
-					puts outputtable2.to_s
-					puts ""
+# 					outputtable2.rows << tempvalues
+# 					count += 1
+# 					end
+# 					puts outputtable2.to_s
+# 					puts ""
 
-					end
+# 					end
 
-					#Output matches to file
-					if opts[:export]
+# 					#Output matches to file
+# 					if opts[:export]
 
-						File.open(opts[:export].to_s,'a') do |file|
-						file.write(mds.to_s + "," + schema.to_s + "," + tablename.to_s + "," + item.to_s + "," + rowcount.to_s + "\n")
-						end
-					end
+# 						File.open(opts[:export].to_s,'a') do |file|
+# 						file.write(mds.to_s + "," + schema.to_s + "," + tablename.to_s + "," + item.to_s + "," + rowcount.to_s + "\n")
+# 						end
+# 					end
 
-					end
+# 					end
 
-					rescue
-						result.each
-						if !opts[:hide]
-							puts "WARNING! Could not access ".red + mds.to_s.red + " > " + schema.to_s.red + " > " + tablename.to_s.red + " > " + item.to_s.red + "\n\n"
-						end
+# 					rescue
+# 						result.each
+# 						if !opts[:hide]
+# 							puts "WARNING! Could not access ".red + mds.to_s.red + " > " + schema.to_s.red + " > " + tablename.to_s.red + " > " + item.to_s.red + "\n\n"
+# 						end
 						
-					end
+# 					end
 
-					end
+# 					end
 					
-				end
+# 				end
 
-			end
+# 			end
 
-		end
+# 		end
 
-	end
+# 	end
 
-end
+# end
