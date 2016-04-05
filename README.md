@@ -79,6 +79,7 @@ Match! 'employee' | Northwind > dbo > Employees > EmployeeID | Rows:9
 -r --truncate    Truncate Sample Data (default: 64)  
 -w --rowcount    Specify the minimum Row Count (Default is 1)  
 -v --verbose     Show Verbose Output  
+-i, --statistics Show Statistics  
 -x --export      Output Matches to CSV File  
 ```
 
