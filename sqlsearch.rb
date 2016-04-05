@@ -14,7 +14,7 @@ require "net/ping"		#Used to test connection server before database
 
 #Commandline Parsing with Trollop
 opts = Trollop::options do
-version "SQLSearch 3.1.0"
+version "SQLSearch 3.2.0"
 banner <<-EOS    
 
    ____ ____    __    ____ ____ ___    ___   _____ __ __
@@ -22,7 +22,7 @@ banner <<-EOS
  _\\ \\ / /_/ / / /__ _\\ \\ / _/ / __ | / , _// /__ / _  / 
 /___/ \\___\\_\\/____//___//___//_/ |_|/_/|_| \\___//_//_/  
                                                                                       
-v3.1.0
+v3.2.0
 
 Example Usage:
 
@@ -40,7 +40,8 @@ EOS
   opt :depth, "Sample Data Depth. Max: 10", :default => 1   			 
   opt :truncate, "Truncate Sample Data", :default => 64
   opt :rowcount, "Minimum Row Count", :default => 1   			 
-  opt :verbose, "Show Verbose Output"              			
+  opt :verbose, "Show Verbose Output"
+  opt :statistics, "Show Statistics"              			
   opt :export, "Output Matches to CSV File", :type => :string      
 
 end
@@ -276,7 +277,7 @@ class KeywordSearch
 
 	attr_reader :table_matches, :column_matches
 
-	def initialize(dbs_structure, keyword = nil, rowcount = 0, port = 1433, domain = nil,truncate = 64,username,password,target,verbose,sample,depth)
+	def initialize(dbs_structure, keyword = nil, rowcount = 0, port = 1433, domain = nil,truncate = 64,username,password,target,verbose,sample,depth,statistics)
 			puts "#{@username} #{@password} #{@domain} #{@target} #{@port}"
 
 
@@ -289,6 +290,7 @@ class KeywordSearch
 		@sample = sample
 		@depth = depth
 		@truncate = truncate
+		@statistics = statistics
 
 		#Authentication
 		@username = username
@@ -365,7 +367,7 @@ class KeywordSearch
 								rowcount = (result.each[0][""]).to_i
 
 								#Table match found
-								table_matches.push("#{mds},#{schema},#{tablename},padcolumn,#{result.each[0][""].to_s}")
+								table_matches.push("#{keyword},#{mds},#{schema},#{tablename},padcolumn,#{result.each[0][""].to_s}")
 				 				puts "Match! '" + keyword.to_s.green + "' | #{mds} > #{schema} > #{tablename} | ".yellow + "Rows:".yellow + result.each[0][""].to_s
 
 				 				#Output sample if option selection
@@ -393,7 +395,7 @@ class KeywordSearch
 		 								rowcount = (result.each[0][""]).to_i
 										
 										#Column match found
-										column_matches.push("#{mds},#{schema},#{tablename},#{item},#{result.each[0][""].to_s}")
+										column_matches.push("#{keyword},#{mds},#{schema},#{tablename},#{item},#{result.each[0][""].to_s}")
 		 								puts "Match! '" + keyword.to_s.green + "' | #{mds} > #{schema} > #{tablename} > #{item} | ".yellow + "Rows:".yellow + result.each[0][""].to_s
 
 		 								#Output sample if option selection
@@ -412,34 +414,14 @@ class KeywordSearch
 	 		end
 	 	end
 
-	 #Print Statistics
-	 if @verbose
-	 	puts "\nBasic Statistics\n"
-	 	print puts "Table matches found:".yellow + @table_matches.length.to_s
-	 	print puts "Column matches found:".yellow + @column_matches.length.to_s
-
-	 	all_matches = @table_matches + @column_matches
-	 	count = Hash.new 0
-	 	all_matches.each do |match|
-	 		count[match.split(",")[2]] += 1
+	 	if @statistics
+			stats = PrintStatistics.new(@table_matches,@column_matches,@statistics)
+			stats.gatherstats
 	 	end
-	 	puts "\nTop 10 Matched Tables\n"
-
-	 	sorted_count = count.sort_by { |k,v| v}.reverse
-
-	 	count = 0
-	 	sorted_count.each do |key,value|
-	 		count += 1
-	 	 	puts "#{key}:".yellow + "#{value}"
-	 	 	if count == 10
-	 	 		break
-	 	 	end
-	 	 end
-
-
-	 end
 
  	end
+
+
 
 
  	def outputSampleData(mds,schema,table,tablename,depth,truncate)
@@ -498,7 +480,7 @@ class CreateFileOutput
 		@filename = filename
 
 		File.open(@filename,'w') do |file|
- 		file.write("DATABASE,SCHEMA,TABLE,COLUMN,ROWCOUNT\n")
+ 		file.write("KEYWORD,DATABASE,SCHEMA,TABLE,COLUMN,ROWCOUNT\n")
  		file.close
 		end
 	end
@@ -518,6 +500,102 @@ class CreateFileOutput
  		end
  	end
 end
+
+
+class PrintStatistics
+
+	def initialize(table_matches,column_matches,statistics)
+		@table_matches = table_matches
+		@column_matches = column_matches
+		@statistics = statistics
+	end
+
+	def gatherstats
+		puts "\nBasic Statistics\n"
+		print puts "Table matches found:".yellow + @table_matches.length.to_s
+		print puts "Column matches found:".yellow + @column_matches.length.to_s
+
+
+		all_matches = @table_matches + @column_matches
+		count = Hash.new 0
+		all_matches.each do |match|
+		 count[match.split(",")[3]] += 1
+		end
+
+
+		puts "\nTop 10 Matched Tables\n"
+
+		sorted_count = count.sort_by { |k,v| v}.reverse
+
+		count = 0
+		sorted_count.each do |key,value|
+		 count += 1
+		 puts "#{key}:".yellow + "#{value}"
+			 if count == 10
+			 	break
+			 end
+		end
+
+		puts "\nTop 10 Keywords\n"
+		keyword_count = Hash.new 0
+		all_matches.each do |match|
+		 keyword_count[match.split(",")[0]] += 1
+		end
+
+		sorted_keyword_count = keyword_count.sort_by { |k,v| v}.reverse
+
+		count = 0
+		sorted_keyword_count.each do |key,value|
+		 count += 1
+		 puts "#{key}:".yellow + "#{value}"
+		 	if count == 10
+		 	 break
+		 	end
+		end
+
+		puts "\nTop 10 Row Counts\n"
+
+		row_count = Hash.new
+		all_matches.each do |match|
+		 row_count[match.split(",")[3]] = match.split(",")[5].to_i
+		end
+
+		sorted_row_count = row_count.sort_by { |k,v| v}.reverse
+
+		count = 0
+		sorted_row_count.each do |key,value|
+		 count += 1
+		 puts "#{key}:".yellow + value.to_s
+		 	if count == 10
+		 	 break
+		 	end
+		end
+
+
+		puts "\nTop 10 Databases with Matches\n"
+
+		db_count = Hash.new 0
+		all_matches.each do |match|
+		 db_count[match.split(",")[1]] += 1
+		end
+
+		sorted_db_count = db_count.sort_by { |k,v| v}.reverse
+
+		count = 0
+		sorted_db_count.each do |key,value|
+		 count += 1
+		 puts "#{key}:".yellow + value.to_s
+		 	if count == 10
+		 	 break
+		 	end
+		end
+
+		puts ""
+
+	end
+
+end
+
 
 
 
@@ -552,7 +630,8 @@ search = KeywordSearch.new(enumdb.finalhash,\
  												   opts[:target],\
  												   opts[:verbose],\
  												   opts[:sample],\
- 												   opts[:depth],)
+ 												   opts[:depth],\
+ 												   opts[:statistics])
 
 
 
@@ -563,3 +642,8 @@ if opts[:export]
 	fileoutput = CreateFileOutput.new(search.table_matches,search.column_matches,opts[:export])
 	fileoutput.createFile
 end
+
+
+
+
+
