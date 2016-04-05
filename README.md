@@ -97,5 +97,5 @@ When using the --keyword(-k) option you can submit regular expressions. However,
 ```
 
 ##Truncate
-The default behavior is to truncate any cell data that exceeds 64 characters in length. This is to prevent data such as image file from being displayed in the terminal as sample date. This setting can be overridden with the --truncate(-t) option.
+The default behavior is to truncate any cell data that exceeds 64 characters in length. This is to prevent data such as image files from being displayed in the terminal as sample data. This setting can be overridden with the --truncate(-t) option.
 
