@@ -26,22 +26,6 @@ $./sqlsearch.rb -u sa -p password -t 10.0.0.1
 $./sqlsearch.rb -u administrator -p password -d WORKGROUP -t 10.0.0.1
 ```
 
-##Custom Regex
-When using the --keyword(-k) option you can submit regular expressions. However, it is necessary to escape any special characters. For example, the syntax to find any tables or column names that contain 1 to 4 characters would be:
-
-```
--k \^.\{1,5\}\$
-```
-
-...or to find all table and column names ending in 'ing' would be:
-
-```
--k ing\$
-```
-
-##Truncate
-The default behavior is to truncate any cell data that exceeds 64 characters in length. This is to prevent data such as image file from being displayed in the terminal as sample date. This setting can be overridden with the --truncate(-t) option.
-
 ##Example Output
 The following output was from running sqlsearch against a Microsoft SQL Server 2008 with the Northwind sample database installed.
 
@@ -97,3 +81,20 @@ Match! 'employee' | Northwind > dbo > Employees > EmployeeID | Rows:9
 -v --verbose     Show Verbose Output  
 -x --export      Output Matches to CSV File  
 ```
+
+##Custom Regex
+When using the --keyword(-k) option you can submit regular expressions. However, it is necessary to escape any special characters. For example, the syntax to find any tables or column names that contain 1 to 4 characters would be:
+
+```
+-k \^.\{1,5\}\$
+```
+
+...or to find all table and column names ending in 'ing' would be:
+
+```
+-k ing\$
+```
+
+##Truncate
+The default behavior is to truncate any cell data that exceeds 64 characters in length. This is to prevent data such as image file from being displayed in the terminal as sample date. This setting can be overridden with the --truncate(-t) option.
+
