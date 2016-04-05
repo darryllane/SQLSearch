@@ -14,7 +14,7 @@ require "net/ping"		#Used to test connection server before database
 
 #Commandline Parsing with Trollop
 opts = Trollop::options do
-version "SQLSearch 3.0.0"
+version "SQLSearch 3.1.0"
 banner <<-EOS    
 
    ____ ____    __    ____ ____ ___    ___   _____ __ __
@@ -22,7 +22,7 @@ banner <<-EOS
  _\\ \\ / /_/ / / /__ _\\ \\ / _/ / __ | / , _// /__ / _  / 
 /___/ \\___\\_\\/____//___//___//_/ |_|/_/|_| \\___//_//_/  
                                                                                       
-v3.0.0
+v3.1.0
 
 Example Usage:
 
@@ -290,12 +290,14 @@ class KeywordSearch
 		@depth = depth
 		@truncate = truncate
 
+		#Authentication
 		@username = username
 		@password = password
 		@target = target
 		@port = port
 		@domain = domain
 
+		#Create the database client connection
 		createClient
 
 	end
@@ -393,7 +395,7 @@ class KeywordSearch
 										#Column match found
 										column_matches.push("#{mds},#{schema},#{tablename},#{item},#{result.each[0][""].to_s}")
 		 								puts "Match! '" + keyword.to_s.green + "' | #{mds} > #{schema} > #{tablename} > #{item} | ".yellow + "Rows:".yellow + result.each[0][""].to_s
-	 								
+
 		 								#Output sample if option selection
 				 						if @sample
 				 						outputSampleData(mds,schema,table,tablename,@depth,@truncate)
@@ -409,6 +411,34 @@ class KeywordSearch
 	 			end
 	 		end
 	 	end
+
+	 #Print Statistics
+	 if @verbose
+	 	puts "\nBasic Statistics\n"
+	 	print puts "Table matches found:".yellow + @table_matches.length.to_s
+	 	print puts "Column matches found:".yellow + @column_matches.length.to_s
+
+	 	all_matches = @table_matches + @column_matches
+	 	count = Hash.new 0
+	 	all_matches.each do |match|
+	 		count[match.split(",")[2]] += 1
+	 	end
+	 	puts "\nTop 10 Matched Tables\n"
+
+	 	sorted_count = count.sort_by { |k,v| v}.reverse
+
+	 	count = 0
+	 	sorted_count.each do |key,value|
+	 		count += 1
+	 	 	puts "#{key}:".yellow + "#{value}"
+	 	 	if count == 10
+	 	 		break
+	 	 	end
+	 	 end
+
+
+	 end
+
  	end
 
 
