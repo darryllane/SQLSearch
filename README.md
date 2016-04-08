@@ -16,6 +16,8 @@ The FreeTDS drivers are necessary to run sqlsearch on osx. These can be installe
 $ brew install unixodbc
 $ brew install freetds --with-unixodbc
 ```
+If you don't have homebrew installed then the following guide details the steps involved: 
+https://coolestguidesontheplanet.com/installing-homebrew-on-os-x-el-capitan-10-11-package-manager-for-unix-apps/
 
 ##Usage Example
 You can issue './sqlsearch.rb --help' for a list of commands. However, the most basic connection syntax would be:
