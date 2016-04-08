@@ -7,6 +7,7 @@ auth
 bank
 benefit
 birth
+cc
 card
 cash
 cheque
