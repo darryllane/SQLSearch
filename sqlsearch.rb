@@ -14,7 +14,7 @@ require "net/ping"		#Used to test connection server before database
 
 #Commandline Parsing with Trollop
 opts = Trollop::options do
-version "SQLSearch 3.2.0"
+version "SQLSearch 3.2.1"
 banner <<-EOS    
 
    ____ ____    __    ____ ____ ___    ___   _____ __ __
@@ -26,7 +26,7 @@ v3.2.0
 
 Example Usage:
 
-$ruby sqlsearch.rb -u administrator -p Pa55w0rd -d WORKGROUP -t 10.0.0.1 -o output.txt
+$ruby sqlsearch.rb -u administrator -p Pa55w0rd -d WORKGROUP -t 10.0.0.1 -x output.csv
    
 EOS
   opt :username, "SA/Windows Username", :type => :string      
