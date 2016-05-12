@@ -14,7 +14,7 @@ require "net/ping"		#Used to test connection server before database
 
 #Commandline Parsing with Trollop
 opts = Trollop::options do
-version "SQLSearch 3.2.1"
+version "SQLSearch 3.2.2"
 banner <<-EOS    
 
    ____ ____    __    ____ ____ ___    ___   _____ __ __
@@ -22,7 +22,7 @@ banner <<-EOS
  _\\ \\ / /_/ / / /__ _\\ \\ / _/ / __ | / , _// /__ / _  / 
 /___/ \\___\\_\\/____//___//___//_/ |_|/_/|_| \\___//_//_/  
                                                                                       
-v3.2.0
+v3.2.2
 
 Example Usage:
 
@@ -94,10 +94,10 @@ class EnumerateDatabaseStructure
 		begin
  		if @domain
  			@client = TinyTds::Client.new(:username => @domain + "\\" + @username,:password => @password, \
- 			                             :host => @target, :port => @port, :timeout => 2)
+ 			                             :host => @target, :port => @port, :timeout => 5)
  		else
  			@client = TinyTds::Client.new(:username => @username,:password => @password, :host => @target, \
- 																	 :port => @port, :timeout => 2)
+ 																	 :port => @port, :timeout => 5)
  		end
  		rescue
  		puts "Connection to the database failed. Please check your syntax and credentials.".red ; abort()
@@ -326,10 +326,10 @@ class KeywordSearch
 		begin
   		if @domain
   			@client = TinyTds::Client.new(:username => @domain + "\\" + @username,:password => @password, \
-  			                             :host => @target, :port => @port, :timeout => 2)
+  			                             :host => @target, :port => @port, :timeout => 5)
   		else
   			@client = TinyTds::Client.new(:username => @username,:password => @password, :host => @target, \
-  																	 :port => @port, :timeout => 2)
+  																	 :port => @port, :timeout => 5)
   		end
 		rescue
 	 		puts "Connection to the database failed. Please check your syntax and credentials.".red ; abort()
