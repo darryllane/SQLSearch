@@ -94,10 +94,10 @@ class EnumerateDatabaseStructure
 		begin
  		if @domain
  			@client = TinyTds::Client.new(:username => @domain + "\\" + @username,:password => @password, \
- 			                             :host => @target, :port => @port, :timeout => 5)
+ 			                             :host => @target, :port => @port, :login_timeout => 2, :timeout => 5)
  		else
  			@client = TinyTds::Client.new(:username => @username,:password => @password, :host => @target, \
- 																	 :port => @port, :timeout => 5)
+ 																	 :port => @port, :login_timeout => 2,:timeout => 5)
  		end
  		rescue
  		puts "Connection to the database failed. Please check your syntax and credentials.".red ; abort()
@@ -326,10 +326,10 @@ class KeywordSearch
 		begin
   		if @domain
   			@client = TinyTds::Client.new(:username => @domain + "\\" + @username,:password => @password, \
-  			                             :host => @target, :port => @port, :timeout => 5)
+  			                             :host => @target, :port => @port, :login_timeout => 2, :timeout => 5)
   		else
   			@client = TinyTds::Client.new(:username => @username,:password => @password, :host => @target, \
-  																	 :port => @port, :timeout => 5)
+  																	 :port => @port, :login_timeout => 2, :timeout => 5)
   		end
 		rescue
 	 		puts "Connection to the database failed. Please check your syntax and credentials.".red ; abort()
