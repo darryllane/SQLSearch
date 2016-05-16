@@ -14,7 +14,7 @@ require "net/ping"		#Used to test connection server before database
 
 #Commandline Parsing with Trollop
 opts = Trollop::options do
-version "SQLSearch 3.2.2"
+version "SQLSearch 3.2.3"
 banner <<-EOS    
 
    ____ ____    __    ____ ____ ___    ___   _____ __ __
@@ -22,7 +22,7 @@ banner <<-EOS
  _\\ \\ / /_/ / / /__ _\\ \\ / _/ / __ | / , _// /__ / _  / 
 /___/ \\___\\_\\/____//___//___//_/ |_|/_/|_| \\___//_//_/  
                                                                                       
-v3.2.2
+v3.2.3
 
 Example Usage:
 
@@ -94,10 +94,10 @@ class EnumerateDatabaseStructure
 		begin
  		if @domain
  			@client = TinyTds::Client.new(:username => @domain + "\\" + @username,:password => @password, \
- 			                             :host => @target, :port => @port, :login_timeout => 2, :timeout => 5)
+ 			                             :host => @target, :port => @port, :login_timeout => 4, :timeout => 30)
  		else
  			@client = TinyTds::Client.new(:username => @username,:password => @password, :host => @target, \
- 																	 :port => @port, :login_timeout => 2,:timeout => 5)
+ 																	 :port => @port, :login_timeout => 4,:timeout => 30)
  		end
  		rescue
  		puts "Connection to the database failed. Please check your syntax and credentials.".red ; abort()
@@ -326,10 +326,10 @@ class KeywordSearch
 		begin
   		if @domain
   			@client = TinyTds::Client.new(:username => @domain + "\\" + @username,:password => @password, \
-  			                             :host => @target, :port => @port, :login_timeout => 2, :timeout => 5)
+  			                             :host => @target, :port => @port, :login_timeout => 4, :timeout => 30)
   		else
   			@client = TinyTds::Client.new(:username => @username,:password => @password, :host => @target, \
-  																	 :port => @port, :login_timeout => 2, :timeout => 5)
+  																	 :port => @port, :login_timeout => 4, :timeout => 30)
   		end
 		rescue
 	 		puts "Connection to the database failed. Please check your syntax and credentials.".red ; abort()
@@ -436,8 +436,12 @@ class KeywordSearch
 
  		outputtable = Text::Table.new
 
+ 		begin
  		result = @client.execute("SELECT TOP 10 * FROM [#{mds}].[#{schema}].[#{tablename}]")
- 	
+ 		rescue
+ 			puts "There was an issue selecting the row count, could be database configuraion issues.".red if @verbose
+ 		end
+
  		userdepth = @depth
  		maxdepth = result.each.count
 
@@ -468,7 +472,11 @@ class KeywordSearch
 	 		outputtable.rows << tempvalues
 		 	count += 1
 	 	end
+	 begin
   	puts outputtable.to_s
+  	rescue
+  		puts "There were issues outputting the sample data, could be odd characters".red if @verbose
+  	end
  	end
 end
 

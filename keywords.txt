@@ -7,12 +7,10 @@ auth
 bank
 benefit
 birth
-cc
 card
 cash
 cheque
 client
-code
 complaint
 consultant
 councillor
@@ -44,7 +42,6 @@ mny
 money
 nationalid
 nhs
-paris
 pass
 patient
 pannumber
@@ -55,7 +52,6 @@ payment
 paymnt
 pymnt
 personalid
-pin
 pounds
 privilege
 profit
