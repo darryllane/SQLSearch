@@ -14,7 +14,7 @@ require "net/ping"		#Used to test connection server before database
 
 #Commandline Parsing with Trollop
 opts = Trollop::options do
-version "SQLSearch 3.2.3"
+version "SQLSearch 3.2.4"
 banner <<-EOS    
 
    ____ ____    __    ____ ____ ___    ___   _____ __ __
@@ -22,7 +22,7 @@ banner <<-EOS
  _\\ \\ / /_/ / / /__ _\\ \\ / _/ / __ | / , _// /__ / _  / 
 /___/ \\___\\_\\/____//___//___//_/ |_|/_/|_| \\___//_//_/  
                                                                                       
-v3.2.3
+v3.2.4
 
 Example Usage:
 
@@ -367,8 +367,13 @@ class KeywordSearch
 								rowcount = (result.each[0][""]).to_i
 
 								#Table match found
-								table_matches.push("#{keyword},#{mds},#{schema},#{tablename},padcolumn,#{result.each[0][""].to_s}")
-				 				puts "Match! '" + keyword.to_s.green + "' | #{mds} > #{schema} > #{tablename} | ".yellow + "Rows:".yellow + result.each[0][""].to_s
+								if keyword.to_s.include("card")
+									table_matches.push("#{keyword},#{mds},#{schema},#{tablename},padcolumn,#{result.each[0][""].to_s}")
+				 					puts "Match! '" + keyword.to_s.light_green.underline + "' | #{mds} > #{schema} > #{tablename} | ".yellow + "Rows:".yellow + result.each[0][""].to_s
+				 				else
+				 					table_matches.push("#{keyword},#{mds},#{schema},#{tablename},padcolumn,#{result.each[0][""].to_s}")
+				 					puts "Match! '" + keyword.to_s.green + "' | #{mds} > #{schema} > #{tablename} | ".yellow + "Rows:".yellow + result.each[0][""].to_s
+				 				end
 
 				 				#Output sample if option selection
 				 				if @sample
@@ -395,8 +400,13 @@ class KeywordSearch
 		 								rowcount = (result.each[0][""]).to_i
 										
 										#Column match found
-										column_matches.push("#{keyword},#{mds},#{schema},#{tablename},#{item},#{result.each[0][""].to_s}")
-		 								puts "Match! '" + keyword.to_s.green + "' | #{mds} > #{schema} > #{tablename} > #{item} | ".yellow + "Rows:".yellow + result.each[0][""].to_s
+										if keyword.to_s.include("card")
+											column_matches.push("#{keyword},#{mds},#{schema},#{tablename},#{item},#{result.each[0][""].to_s}")
+		 									puts "Match! '" + keyword.to_s.light_green.underline + "' | #{mds} > #{schema} > #{tablename} > #{item} | ".yellow + "Rows:".yellow + result.each[0][""].to_s
+		 								else
+		 									column_matches.push("#{keyword},#{mds},#{schema},#{tablename},#{item},#{result.each[0][""].to_s}")
+		 									puts "Match! '" + keyword.to_s.green + "' | #{mds} > #{schema} > #{tablename} > #{item} | ".yellow + "Rows:".yellow + result.each[0][""].to_s
+		 								end
 
 		 								#Output sample if option selection
 				 						if @sample
