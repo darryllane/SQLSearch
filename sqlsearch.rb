@@ -94,10 +94,10 @@ class EnumerateDatabaseStructure
 		begin
  		if @domain
  			@client = TinyTds::Client.new(:username => @domain + "\\" + @username,:password => @password, \
- 			                             :host => @target, :port => @port, :login_timeout => 4, :timeout => 30)
+ 			                             :host => @target, :port => @port, :login_timeout => 10, :timeout => 60)
  		else
  			@client = TinyTds::Client.new(:username => @username,:password => @password, :host => @target, \
- 																	 :port => @port, :login_timeout => 4,:timeout => 30)
+ 																	 :port => @port, :login_timeout => 10,:timeout => 60)
  		end
  		rescue
  		puts "Connection to the database failed. Please check your syntax and credentials.".red ; abort()
@@ -204,7 +204,7 @@ class EnumerateDatabaseStructure
 		 		end
 
 		 	rescue
-		 		puts "There was an issue enumerating the database schema".red
+		 		puts "There was an issue enumerating the #{mds} database schema".red
 		 	end
 
 			@schemalist.each do |schema|
@@ -326,10 +326,10 @@ class KeywordSearch
 		begin
   		if @domain
   			@client = TinyTds::Client.new(:username => @domain + "\\" + @username,:password => @password, \
-  			                             :host => @target, :port => @port, :login_timeout => 4, :timeout => 30)
+  			                             :host => @target, :port => @port, :login_timeout => 10, :timeout => 60)
   		else
   			@client = TinyTds::Client.new(:username => @username,:password => @password, :host => @target, \
-  																	 :port => @port, :login_timeout => 4, :timeout => 30)
+  																	 :port => @port, :login_timeout => 10, :timeout => 60)
   		end
 		rescue
 	 		puts "Connection to the database failed. Please check your syntax and credentials.".red ; abort()
@@ -363,11 +363,13 @@ class KeywordSearch
 								puts "Unable to connect to " + tablename.to_s
 							end
 
+							rowcount = 1
+
 			 				if (result.each[0][""]) > @rowcount	
 								rowcount = (result.each[0][""]).to_i
 
 								#Table match found
-								if keyword.to_s.include("card")
+								if keyword.to_s.include?("card")
 									table_matches.push("#{keyword},#{mds},#{schema},#{tablename},padcolumn,#{result.each[0][""].to_s}")
 				 					puts "Match! '" + keyword.to_s.light_green.underline + "' | #{mds} > #{schema} > #{tablename} | ".yellow + "Rows:".yellow + result.each[0][""].to_s
 				 				else
@@ -400,7 +402,7 @@ class KeywordSearch
 		 								rowcount = (result.each[0][""]).to_i
 										
 										#Column match found
-										if keyword.to_s.include("card")
+										if keyword.to_s.include?("card")
 											column_matches.push("#{keyword},#{mds},#{schema},#{tablename},#{item},#{result.each[0][""].to_s}")
 		 									puts "Match! '" + keyword.to_s.light_green.underline + "' | #{mds} > #{schema} > #{tablename} > #{item} | ".yellow + "Rows:".yellow + result.each[0][""].to_s
 		 								else
